@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "WebSearch",
+      "Bash(tree:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(dir \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\")",
+      "Bash(dir \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\\\\screens\")",
+      "Bash(dir \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\\\\components\")",
+      "Bash(dir \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\\\\hooks\")"
+    ]
+  }
+}

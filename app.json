@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "inventory-tracker",
+    "slug": "inventory-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "platforms": [
+      "ios",
+      "android"
+    ]
+  }
+}
