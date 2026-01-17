@@ -9,12 +9,82 @@ import {
   ScrollView,
   Image,
   Alert,
+  FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+const COLORS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Brown', 'Gray', 'Navy', 'Beige', 'Cream'];
+
+const CustomDropdown = ({ value, options, onSelect }) => {
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+
+  return (
+    <>
+      <TouchableOpacity
+        style={styles.dropdownButton}
+        onPress={() => setDropdownVisible(true)}
+      >
+        <Text style={[styles.dropdownButtonText, !value && styles.dropdownPlaceholder]}>
+          {value || 'Select an option...'}
+        </Text>
+        <Text style={styles.dropdownArrow}>▼</Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={dropdownVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDropdownVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setDropdownVisible(false)}
+        >
+          <View style={styles.dropdownMenu}>
+            <FlatList
+              data={options}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.dropdownItem,
+                    value === item && styles.dropdownItemSelected,
+                  ]}
+                  onPress={() => {
+                    onSelect(item);
+                    setDropdownVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      value === item && styles.dropdownItemSelectedText,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              scrollEnabled={options.length > 6}
+              nestedScrollEnabled
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
+  );
+};
 
 export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemToEdit = null, onImageUpdate }) => {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [brand, setBrand] = useState('');
+  const [color, setColor] = useState('');
+  const [garmentType, setGarmentType] = useState('');
+  const [size, setSize] = useState('');
+  const [notes, setNotes] = useState('');
   const [imageUri, setImageUri] = useState('');
   const [errors, setErrors] = useState({});
 
@@ -22,10 +92,20 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
     if (editMode && itemToEdit) {
       setName(itemToEdit.name);
       setQuantity(String(itemToEdit.quantity));
+      setBrand(itemToEdit.brand || '');
+      setColor(itemToEdit.color || '');
+      setGarmentType(itemToEdit.garmentType || '');
+      setSize(itemToEdit.size || '');
+      setNotes(itemToEdit.notes || '');
       setImageUri(itemToEdit.imageUri || '');
     } else {
       setName('');
       setQuantity('');
+      setBrand('');
+      setColor('');
+      setGarmentType('');
+      setSize('');
+      setNotes('');
       setImageUri('');
     }
     setErrors({});
@@ -46,6 +126,10 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image');
+      setBrand('');
+      setColor('');
+      setGarmentType('');
+      setSize('');
       console.error('Image picker error:', error);
     }
   };
@@ -54,16 +138,17 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
     if (!editMode) {
       setName('');
       setQuantity('');
+      setBrand('');
+      setColor('');
+      setGarmentType('');
+      setSize('');
+      setNotes('');
     }
     setErrors({});
   };
 
   const validateForm = () => {
     const newErrors = {};
-
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
-    }
 
     if (!quantity.trim()) {
       newErrors.quantity = 'Quantity is required';
@@ -77,7 +162,7 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
 
   const handleSubmit = () => {
     if (validateForm()) {
-      onSubmit(name.trim(), quantity);
+      onSubmit(name.trim(), quantity, brand.trim(), color.trim(), garmentType.trim(), size.trim(), notes.trim());
       if (editMode && itemToEdit && imageUri && onImageUpdate) {
         onImageUpdate(itemToEdit.id, imageUri);
       }
@@ -107,18 +192,16 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
 
         <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Item Name *</Text>
+            <Text style={styles.label}>Brand</Text>
             <TextInput
-              style={[styles.input, errors.name && styles.inputError]}
-              value={name}
+              style={styles.input}
+              value={brand}
               onChangeText={(text) => {
-                setName(text);
-                if (errors.name) setErrors({ ...errors, name: null });
+                setBrand(text);
               }}
-              placeholder="Enter item name"
+              placeholder="Enter brand"
               placeholderTextColor="#999"
             />
-            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -135,6 +218,67 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
               keyboardType="numeric"
             />
             {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Size</Text>
+            <CustomDropdown
+              value={size}
+              options={SIZES}
+              onSelect={setSize}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Color</Text>
+            <CustomDropdown
+              value={color}
+              options={COLORS}
+              onSelect={setColor}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Garment Type</Text>
+            <TextInput
+              style={styles.input}
+              value={garmentType}
+              onChangeText={(text) => {
+                setGarmentType(text);
+              }}
+              placeholder="Enter garment type"
+              placeholderTextColor="#999"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Item Name</Text>
+            <TextInput
+              style={[styles.input, errors.name && styles.inputError]}
+              value={name}
+              onChangeText={(text) => {
+                setName(text);
+                if (errors.name) setErrors({ ...errors, name: null });
+              }}
+              placeholder="Enter item name"
+              placeholderTextColor="#999"
+            />
+            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Notes</Text>
+            <TextInput
+              style={[styles.input, styles.notesInput]}
+              value={notes}
+              onChangeText={(text) => {
+                setNotes(text);
+              }}
+              placeholder="Add any notes about this item"
+              placeholderTextColor="#999"
+              multiline
+              numberOfLines={4}
+            />
           </View>
 
           {editMode && (
@@ -281,6 +425,66 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 6,
   },
+  notesInput: {
+    textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+  dropdownButton: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    minHeight: 32,
+    width: '50%',
+  },
+  dropdownButtonText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  dropdownArrow: {
+    fontSize: 11,
+    color: '#666',
+    marginLeft: 8,
+  },
+  dropdownPlaceholder: {
+    color: '#999',
+    fontSize: 13,
+  },
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  dropdownMenu: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    maxHeight: '60%',
+    paddingVertical: 8,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#f0f0f0',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  dropdownItemSelectedText: {
+    color: '#34C759',
+    fontWeight: '600',
+  },
   placeholderContainer: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -292,6 +496,5 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: '#999',
     fontSize: 14,
-    fontWeight: '500',
   },
 });

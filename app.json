@@ -9,6 +9,20 @@
     "platforms": [
       "ios",
       "android"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "01be417b-323e-46ea-8dc4-b8604e4bfd5d"
+      }
+    },
+    "android": {
+      "package": "com.dangelo137.inventorytracker"
+    },
+    "ios": {
+      "bundleIdentifier": "com.dangelo137.inventorytracker",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
   }
 }

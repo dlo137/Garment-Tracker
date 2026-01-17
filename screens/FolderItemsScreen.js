@@ -20,14 +20,14 @@ export const FolderItemsScreen = ({ folderId, onBack }) => {
     return items.filter((item) => item.folderId === folderId);
   }, [items, folderId]);
 
-  const handleAddItem = (name, quantity) => {
-    addItem(name, quantity, folderId);
+  const handleAddItem = (name, quantity, brand, color, garmentType, size, notes) => {
+    addItem(name, quantity, brand, color, garmentType, size, notes, folderId);
     setModalVisible(false);
   };
 
-  const handleEditItem = (name, quantity) => {
+  const handleEditItem = (name, quantity, brand, color, garmentType, size, notes) => {
     if (selectedItem) {
-      updateItem(selectedItem.id, name, quantity);
+      updateItem(selectedItem.id, name, quantity, brand, color, garmentType, size, notes);
       setModalVisible(false);
       setEditMode(false);
       setSelectedItem(null);

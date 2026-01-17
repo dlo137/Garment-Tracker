@@ -95,7 +95,10 @@ export const ItemCard = ({ item, onUpdateQuantity, onDelete, onPress, onSave, on
             </View>
 
             <View style={styles.nameContainer}>
-              <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
+              <Text style={styles.itemLabel}>Brand: <Text style={styles.itemValue}>{item.brand || '—'}</Text></Text>
+              <Text style={styles.itemLabel}>Color: <Text style={styles.itemValue}>{item.color || '—'}</Text></Text>
+              <Text style={styles.itemLabel}>Type: <Text style={styles.itemValue}>{item.garmentType || '—'}</Text></Text>
+              <Text style={styles.itemLabel}>Size: <Text style={styles.itemValue}>{item.size || '—'}</Text></Text>
             </View>
           </View>
 
@@ -187,9 +190,14 @@ const styles = StyleSheet.create({
   },
   nameContainer: {
     flex: 1,
+    gap: 2,
   },
-  name: {
-    fontSize: 16,
+  itemLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666',
+  },
+  itemValue: {
     fontWeight: '600',
     color: '#333',
   },

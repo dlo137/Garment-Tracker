@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS public.items (
   folder_id UUID NOT NULL REFERENCES public.folders(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   quantity INTEGER NOT NULL DEFAULT 0,
+  brand TEXT,
+  color TEXT,
+  garment_type TEXT,
+  size TEXT,
+  notes TEXT,
   image_uri TEXT, -- Not used currently, but kept for future use
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );

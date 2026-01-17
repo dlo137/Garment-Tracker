@@ -48,6 +48,11 @@ export const useInventoryStorage = () => {
         id: item.id,
         name: item.name,
         quantity: item.quantity,
+        brand: item.brand,
+        color: item.color,
+        garmentType: item.garment_type,
+        size: item.size,
+        notes: item.notes,
         imageUri: item.image_uri,
         folderId: item.folder_id,
         createdAt: new Date(item.created_at).getTime(),
@@ -118,7 +123,7 @@ export const useInventoryStorage = () => {
     }
   }, []);
 
-  const addItem = useCallback(async (name, quantity, folderId) => {
+  const addItem = useCallback(async (name, quantity, brand, color, garmentType, size, notes, folderId) => {
     try {
       // Get current user's ID
       const { data: { user } } = await supabase.auth.getUser();
@@ -133,6 +138,11 @@ export const useInventoryStorage = () => {
         .insert({
           name,
           quantity: parseInt(quantity, 10),
+          brand: brand || null,
+          color: color || null,
+          garment_type: garmentType || null,
+          size: size || null,
+          notes: notes || null,
           folder_id: folderId,
           user_id: user.id,
           image_uri: null,
@@ -150,6 +160,11 @@ export const useInventoryStorage = () => {
         id: data.id,
         name: data.name,
         quantity: data.quantity,
+        brand: data.brand,
+        color: data.color,
+        garmentType: data.garment_type,
+        size: data.size,
+        notes: data.notes,
         imageUri: data.image_uri,
         folderId: data.folder_id,
         createdAt: new Date(data.created_at).getTime(),
@@ -209,13 +224,18 @@ export const useInventoryStorage = () => {
     }
   }, []);
 
-  const updateItem = useCallback(async (id, name, quantity) => {
+  const updateItem = useCallback(async (id, name, quantity, brand, color, garmentType, size, notes) => {
     try {
       const { error } = await supabase
         .from('items')
         .update({
           name,
           quantity: parseInt(quantity, 10),
+          brand: brand || null,
+          color: color || null,
+          garment_type: garmentType || null,
+          size: size || null,
+          notes: notes || null,
         })
         .eq('id', id);
 
@@ -228,7 +248,7 @@ export const useInventoryStorage = () => {
       setItems((prevItems) =>
         prevItems.map((item) =>
           item.id === id
-            ? { ...item, name, quantity: parseInt(quantity, 10) }
+            ? { ...item, name, quantity: parseInt(quantity, 10), brand, color, garmentType, size, notes }
             : item
         )
       );
