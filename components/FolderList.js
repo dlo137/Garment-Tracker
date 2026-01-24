@@ -2,16 +2,16 @@ import React from 'react';
 import { FlatList, View, Text, StyleSheet } from 'react-native';
 import { FolderCard } from './FolderCard';
 
-export const FolderList = ({ folders, items, onDeleteFolder, onFolderPress }) => {
+export const FolderList = ({ folders, items, onDeleteFolder, onFolderPress, theme }) => {
   const getFolderItemCount = (folderId) => {
     return items.filter((item) => item.folderId === folderId).length;
   };
 
   if (folders.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No folders created</Text>
-        <Text style={styles.emptySubtext}>Tap the <Text style={{color:'#3A5AFF',fontWeight:'700'}}>+</Text> button below to create your first folder!</Text>
+      <View style={[styles.emptyContainer, theme === 'dark' && { backgroundColor: 'transparent' }]}> 
+        <Text style={[styles.emptyText, theme === 'dark' && { color: '#bbb' }]}>No folders created</Text>
+        <Text style={[styles.emptySubtext, theme === 'dark' && { color: '#555' }]}>Tap the <Text style={{color:'#3A5AFF',fontWeight:'700'}}>+</Text> button below to create your first folder!</Text>
       </View>
     );
   }
@@ -25,6 +25,7 @@ export const FolderList = ({ folders, items, onDeleteFolder, onFolderPress }) =>
           itemCount={getFolderItemCount(item.id)}
           onDelete={onDeleteFolder}
           onPress={onFolderPress}
+          theme={theme}
         />
       )}
       keyExtractor={(item) => item.id}

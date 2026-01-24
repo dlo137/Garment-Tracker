@@ -4,8 +4,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { supabase } from './lib/supabaseClient';
 import { FolderListScreen } from './screens/FolderListScreen';
 import { FolderItemsScreen } from './screens/FolderItemsScreen';
+import { ThemeProvider, useTheme } from './hooks/useTheme';
 
-export default function App() {
+function MainApp() {
+  const { theme, toggleTheme } = useTheme(); // Always call hooks at the top
   const [screen, setScreen] = useState('folders');
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
@@ -96,15 +98,25 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {screen === 'folders' && (
-        <FolderListScreen onFolderPress={handleFolderPress} />
+        <FolderListScreen onFolderPress={handleFolderPress} theme={theme} toggleTheme={toggleTheme} />
       )}
       {screen === 'folderItems' && selectedFolderId && (
         <FolderItemsScreen
           folderId={selectedFolderId}
           onBack={handleBack}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
       )}
     </GestureHandlerRootView>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <MainApp />
+    </ThemeProvider>
   );
 }
 

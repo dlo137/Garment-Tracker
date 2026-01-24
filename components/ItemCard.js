@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 
-export const ItemCard = ({ item, onUpdateQuantity, onDelete, onPress, onSave, onChangeTracked, onSaveSuccess }) => {
+export const ItemCard = ({ item, onUpdateQuantity, onDelete, onPress, onSave, onChangeTracked, onSaveSuccess, theme }) => {
   const [tempQuantity, setTempQuantity] = useState(item.quantity);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -77,12 +77,12 @@ export const ItemCard = ({ item, onUpdateQuantity, onDelete, onPress, onSave, on
     <Swipeable renderRightActions={renderRightActions}>
       <View style={styles.cardWrapper}>
         <TouchableOpacity
-          style={styles.card}
+          style={[styles.card, theme === 'dark' && { backgroundColor: '#363738', shadowColor: '#000' }]}
           onPress={() => onPress && onPress(item)}
           activeOpacity={0.7}
         >
           <View style={styles.leftSection}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, theme === 'dark' && { backgroundColor: '#23272F' }] }>
               {item.imageUri ? (
                 <Image
                   source={{ uri: item.imageUri }}
@@ -95,15 +95,15 @@ export const ItemCard = ({ item, onUpdateQuantity, onDelete, onPress, onSave, on
             </View>
 
             <View style={styles.nameContainer}>
-              <Text style={styles.itemLabel}>Brand: <Text style={styles.itemValue}>{item.brand || '—'}</Text></Text>
-              <Text style={styles.itemLabel}>Color: <Text style={styles.itemValue}>{item.color || '—'}</Text></Text>
-              <Text style={styles.itemLabel}>Type: <Text style={styles.itemValue}>{item.garmentType || '—'}</Text></Text>
-              <Text style={styles.itemLabel}>Size: <Text style={styles.itemValue}>{item.size || '—'}</Text></Text>
+              <Text style={[styles.itemLabel, theme === 'dark' && { color: '#b0b4c0' }]}>Brand: <Text style={[styles.itemValue, theme === 'dark' && { color: '#e0e0e0' }]}>{item.brand || '—'}</Text></Text>
+              <Text style={[styles.itemLabel, theme === 'dark' && { color: '#b0b4c0' }]}>Color: <Text style={[styles.itemValue, theme === 'dark' && { color: '#e0e0e0' }]}>{item.color || '—'}</Text></Text>
+              <Text style={[styles.itemLabel, theme === 'dark' && { color: '#b0b4c0' }]}>Type: <Text style={[styles.itemValue, theme === 'dark' && { color: '#e0e0e0' }]}>{item.garmentType || '—'}</Text></Text>
+              <Text style={[styles.itemLabel, theme === 'dark' && { color: '#b0b4c0' }]}>Size: <Text style={[styles.itemValue, theme === 'dark' && { color: '#e0e0e0' }]}>{item.size || '—'}</Text></Text>
             </View>
           </View>
 
           <View style={styles.rightSection}>
-            <Text style={styles.quantity}>{tempQuantity}</Text>
+            <Text style={[styles.quantity, theme === 'dark' && { color: '#fff' }]}>{tempQuantity}</Text>
 
             <View style={styles.quantityControls}>
               <TouchableOpacity

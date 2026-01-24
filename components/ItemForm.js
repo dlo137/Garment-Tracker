@@ -16,19 +16,19 @@ import * as ImagePicker from 'expo-image-picker';
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 const COLORS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Brown', 'Gray', 'Navy', 'Beige', 'Cream'];
 
-const CustomDropdown = ({ value, options, onSelect }) => {
+const CustomDropdown = ({ value, options, onSelect, theme }) => {
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
   return (
     <>
       <TouchableOpacity
-        style={styles.dropdownButton}
+        style={[styles.dropdownButton, theme === 'dark' && { backgroundColor: '#23272F', borderColor: '#333' }]}
         onPress={() => setDropdownVisible(true)}
       >
-        <Text style={[styles.dropdownButtonText, !value && styles.dropdownPlaceholder]}>
+        <Text style={[styles.dropdownButtonText, !value && styles.dropdownPlaceholder, theme === 'dark' && { color: '#e0e0e0' }]}> 
           {value || 'Select an option...'}
         </Text>
-        <Text style={styles.dropdownArrow}>▼</Text>
+        <Text style={[styles.dropdownArrow, theme === 'dark' && { color: '#888' }]}>▼</Text>
       </TouchableOpacity>
 
       <Modal
@@ -42,7 +42,7 @@ const CustomDropdown = ({ value, options, onSelect }) => {
           activeOpacity={1}
           onPress={() => setDropdownVisible(false)}
         >
-          <View style={styles.dropdownMenu}>
+          <View style={[styles.dropdownMenu, theme === 'dark' && { backgroundColor: '#23272F' }] }>
             <FlatList
               data={options}
               keyExtractor={(item) => item}
@@ -51,6 +51,7 @@ const CustomDropdown = ({ value, options, onSelect }) => {
                   style={[
                     styles.dropdownItem,
                     value === item && styles.dropdownItemSelected,
+                    theme === 'dark' && { borderBottomColor: '#333' },
                   ]}
                   onPress={() => {
                     onSelect(item);
@@ -61,6 +62,7 @@ const CustomDropdown = ({ value, options, onSelect }) => {
                     style={[
                       styles.dropdownItemText,
                       value === item && styles.dropdownItemSelectedText,
+                      theme === 'dark' && { color: value === item ? '#188fff' : '#e0e0e0' },
                     ]}
                   >
                     {item}
@@ -77,7 +79,7 @@ const CustomDropdown = ({ value, options, onSelect }) => {
   );
 };
 
-export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemToEdit = null, onImageUpdate, folderName = '' }) => {
+export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemToEdit = null, onImageUpdate, folderName = '', theme }) => {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [brand, setBrand] = useState('');
@@ -182,9 +184,9 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
       presentationStyle="pageSheet"
       onRequestClose={handleCancel}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>
+      <View style={[styles.container, theme === 'dark' && { backgroundColor: '#181818' }] }>
+        <View style={[styles.header, { backgroundColor: '#181818' }, theme === 'dark' && { borderBottomColor: '#333' }] }>
+          <Text style={[styles.title, theme === 'dark' && { color: '#e0e0e0' }] }>
             {editMode
               ? 'Edit Item'
               : folderName
@@ -199,31 +201,31 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
         <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
           {/* Brand input at the top */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Brand</Text>
+            <Text style={[styles.label, theme === 'dark' && { color: '#e0e0e0' }]}>Brand</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, theme === 'dark' && { backgroundColor: '#23272F', color: '#e0e0e0', borderColor: '#333' }]}
               value={brand}
               onChangeText={(text) => {
                 setBrand(text);
               }}
               placeholder="Enter brand"
-              placeholderTextColor="#999"
+              placeholderTextColor={theme === 'dark' ? '#888' : '#999'}
             />
           </View>
 
           {/* Row for Quantity only */}
           <View style={styles.rowInputs}>
             <View style={[styles.inputGroup, styles.halfInput]}>
-              <Text style={styles.label}>Quantity *</Text>
+              <Text style={[styles.label, theme === 'dark' && { color: '#e0e0e0' }]}>Quantity *</Text>
               <TextInput
-                style={[styles.input, errors.quantity && styles.inputError]}
+                style={[styles.input, errors.quantity && styles.inputError, theme === 'dark' && { backgroundColor: '#23272F', color: '#e0e0e0', borderColor: '#333' }]}
                 value={quantity}
                 onChangeText={(text) => {
                   setQuantity(text);
                   if (errors.quantity) setErrors({ ...errors, quantity: null });
                 }}
                 placeholder="Enter quantity"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme === 'dark' ? '#888' : '#999'}
                 keyboardType="numeric"
               />
               {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
@@ -233,47 +235,36 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
           {/* Row for Size and Color */}
           <View style={styles.rowInputs}>
             <View style={[styles.inputGroup, styles.halfInput]}>
-              <Text style={styles.label}>Size</Text>
+              <Text style={[styles.label, theme === 'dark' && { color: '#e0e0e0' }]}>Size</Text>
               <CustomDropdown
                 value={size}
                 options={SIZES}
                 onSelect={setSize}
+                theme={theme}
               />
             </View>
             <View style={[styles.inputGroup, styles.halfInput]}>
-              <Text style={styles.label}>Color</Text>
+              <Text style={[styles.label, theme === 'dark' && { color: '#e0e0e0' }]}>Color</Text>
               <CustomDropdown
                 value={color}
                 options={COLORS}
                 onSelect={setColor}
+                theme={theme}
               />
             </View>
           </View>
 
-          {/* Brand input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Brand</Text>
-            <TextInput
-              style={styles.input}
-              value={brand}
-              onChangeText={(text) => {
-                setBrand(text);
-              }}
-              placeholder="Enter brand"
-              placeholderTextColor="#999"
-            />
-          </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Notes</Text>
+            <Text style={[styles.label, theme === 'dark' && { color: '#e0e0e0' }]}>Notes</Text>
             <TextInput
-              style={[styles.input, styles.notesInput]}
+              style={[styles.input, styles.notesInput, theme === 'dark' && { backgroundColor: '#23272F', color: '#e0e0e0', borderColor: '#333' }]}
               value={notes}
               onChangeText={(text) => {
                 setNotes(text);
               }}
               placeholder="Add any notes about this item"
-              placeholderTextColor="#999"
+              placeholderTextColor={theme === 'dark' ? '#888' : '#999'}
               multiline
               numberOfLines={4}
             />
@@ -283,7 +274,7 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Item Photo</Text>
               <TouchableOpacity
-                style={styles.imagePickerContainer}
+                style={[styles.imagePickerContainer, theme === 'dark' && { backgroundColor: '#23272F', borderColor: '#333' }]}
                 onPress={pickImage}
               >
                 {imageUri ? (
@@ -303,19 +294,19 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
           )}
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, theme === 'dark' && { borderTopColor: '#222' }] }>
           <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
+            style={[styles.button, styles.cancelButton, theme === 'dark' && { backgroundColor: '#23272F' }]}
             onPress={handleCancel}
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <Text style={[styles.cancelButtonText, theme === 'dark' && { color: '#bebfc1' }]}>Cancel</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, styles.submitButton]}
+            style={[styles.button, styles.submitButton, theme === 'dark' && { backgroundColor: '#188fff' }]}
             onPress={handleSubmit}
           >
-            <Text style={styles.submitButtonText}>{editMode ? 'Save Changes' : 'Add Item'}</Text>
+            <Text style={[styles.submitButtonText, theme === 'dark' && { color: '#fff' }]}>{editMode ? 'Save Changes' : 'Add Item'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -344,6 +335,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    backgroundColor: '#181818',
   },
   title: {
     fontSize: 24,

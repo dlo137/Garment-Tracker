@@ -5,7 +5,7 @@ import { useInventoryStorage } from '../hooks/useInventoryStorage';
 import { ItemList } from '../components/ItemList';
 import { ItemForm } from '../components/ItemForm';
 
-export const FolderItemsScreen = ({ folderId, onBack }) => {
+export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
   const { folders, items, addItem, deleteItem, updateQuantity, saveQuantity, updateItem, updateItemImage } = useInventoryStorage();
   const [modalVisible, setModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -120,16 +120,16 @@ export const FolderItemsScreen = ({ folderId, onBack }) => {
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="auto" />
+    <View style={[styles.container, theme === 'dark' && { backgroundColor: '#181818' }] }>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: '#181818' }, theme === 'dark' && { borderBottomColor: '#333' }] }>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Text style={styles.backText}>‹</Text>
+          <Text style={[styles.backText, theme === 'dark' && { color: '#e0e0e0' }]}>‹</Text>
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>{folder.name}</Text>
-          <Text style={styles.subtitle}>{folderItems.length} items</Text>
+          <Text style={[styles.title, theme === 'dark' && { color: '#e0e0e0' }]}>{folder.name}</Text>
+          <Text style={[styles.subtitle, theme === 'dark' && { color: '#888' }]}>{folderItems.length} items</Text>
         </View>
       </View>
 
@@ -141,6 +141,7 @@ export const FolderItemsScreen = ({ folderId, onBack }) => {
         onSaveQuantity={saveQuantity}
         onChangeTracked={handleChangeTracked}
         onSaveSuccess={handleSaveQuantitySuccess}
+        theme={theme}
       />
 
       <TouchableOpacity
@@ -158,6 +159,7 @@ export const FolderItemsScreen = ({ folderId, onBack }) => {
         itemToEdit={selectedItem}
         onImageUpdate={updateItemImage}
         folderName={folder?.name || ''}
+        theme={theme}
       />
     </View>
   );
@@ -169,7 +171,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: '#181818',
     padding: 20,
     paddingTop: 60,
     borderBottomWidth: 1,

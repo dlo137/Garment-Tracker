@@ -2,7 +2,7 @@ import React from 'react';
 import { FlatList, View, Text, StyleSheet } from 'react-native';
 import { ItemCard } from './ItemCard';
 
-export const ItemList = ({ items, onUpdateQuantity, onDeleteItem, onItemPress, onSaveQuantity, onChangeTracked, onSaveSuccess }) => {
+export const ItemList = ({ items, onUpdateQuantity, onDeleteItem, onItemPress, onSaveQuantity, onChangeTracked, onSaveSuccess, theme }) => {
   if (items.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -24,6 +24,7 @@ export const ItemList = ({ items, onUpdateQuantity, onDeleteItem, onItemPress, o
           onSave={onSaveQuantity}
           onChangeTracked={onChangeTracked}
           onSaveSuccess={onSaveSuccess}
+          theme={theme}
         />
       )}
       keyExtractor={(item) => item.id}
@@ -48,7 +49,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#23272F',
+    color: '#6B7280',
     marginBottom: 10,
     textAlign: 'center',
     letterSpacing: -0.2,
