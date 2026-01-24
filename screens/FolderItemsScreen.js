@@ -157,6 +157,7 @@ export const FolderItemsScreen = ({ folderId, onBack }) => {
         editMode={editMode}
         itemToEdit={selectedItem}
         onImageUpdate={updateItemImage}
+        folderName={folder?.name || ''}
       />
     </View>
   );

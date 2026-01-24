@@ -6,8 +6,8 @@ export const ItemList = ({ items, onUpdateQuantity, onDeleteItem, onItemPress, o
   if (items.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No items yet</Text>
-        <Text style={styles.emptySubtext}>Tap the + button to add your first item</Text>
+        <Text style={styles.emptyText}>No items in your inventory</Text>
+        <Text style={styles.emptySubtext}>Start by tapping the <Text style={{color:'#3A5AFF',fontWeight:'700'}}>+</Text> button below to add your first item!</Text>
       </View>
     );
   }
@@ -34,24 +34,31 @@ export const ItemList = ({ items, onUpdateQuantity, onDeleteItem, onItemPress, o
 
 const styles = StyleSheet.create({
   listContainer: {
-    paddingTop: 8,
-    paddingBottom: 100,
+    paddingTop: 16,
+    paddingBottom: 120,
+    paddingHorizontal: 0,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: 48,
+    backgroundColor: 'transparent',
   },
   emptyText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#999',
-    marginBottom: 8,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#23272F',
+    marginBottom: 10,
+    textAlign: 'center',
+    letterSpacing: -0.2,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#bbb',
+    fontSize: 15,
+    color: '#6B7280',
     textAlign: 'center',
+    fontWeight: '400',
+    marginTop: 2,
+    lineHeight: 22,
   },
 });

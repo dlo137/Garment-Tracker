@@ -10,8 +10,8 @@ export const FolderList = ({ folders, items, onDeleteFolder, onFolderPress }) =>
   if (folders.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No folders yet</Text>
-        <Text style={styles.emptySubtext}>Tap the + button to create your first folder</Text>
+        <Text style={styles.emptyText}>No folders created</Text>
+        <Text style={styles.emptySubtext}>Tap the <Text style={{color:'#3A5AFF',fontWeight:'700'}}>+</Text> button below to create your first folder!</Text>
       </View>
     );
   }
@@ -35,24 +35,31 @@ export const FolderList = ({ folders, items, onDeleteFolder, onFolderPress }) =>
 
 const styles = StyleSheet.create({
   listContainer: {
-    paddingTop: 8,
-    paddingBottom: 100,
+    paddingTop: 16,
+    paddingBottom: 120,
+    paddingHorizontal: 0,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: 48,
+    backgroundColor: 'transparent',
   },
   emptyText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#999',
-    marginBottom: 8,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#23272F',
+    marginBottom: 10,
+    textAlign: 'center',
+    letterSpacing: -0.2,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#bbb',
+    fontSize: 15,
+    color: '#6B7280',
     textAlign: 'center',
+    fontWeight: '400',
+    marginTop: 2,
+    lineHeight: 22,
   },
 });

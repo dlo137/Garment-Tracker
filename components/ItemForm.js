@@ -77,7 +77,7 @@ const CustomDropdown = ({ value, options, onSelect }) => {
   );
 };
 
-export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemToEdit = null, onImageUpdate }) => {
+export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemToEdit = null, onImageUpdate, folderName = '' }) => {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [brand, setBrand] = useState('');
@@ -184,13 +184,20 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
     >
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>{editMode ? 'Edit Item' : 'Add New Item'}</Text>
+          <Text style={styles.title}>
+            {editMode
+              ? 'Edit Item'
+              : folderName
+                ? `Add New ${folderName === 'Pants' ? 'Pants' : folderName.replace(/s$/,'').replace(/([A-Z])/g, ' $1').replace(/- /g, '-').replace(/\s+/g, ' ').trim()}`
+                : 'Add New Item'}
+          </Text>
           <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
             <Text style={styles.closeText}>✕</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
+          {/* Brand input at the top */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Brand</Text>
             <TextInput
@@ -204,66 +211,57 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Quantity *</Text>
-            <TextInput
-              style={[styles.input, errors.quantity && styles.inputError]}
-              value={quantity}
-              onChangeText={(text) => {
-                setQuantity(text);
-                if (errors.quantity) setErrors({ ...errors, quantity: null });
-              }}
-              placeholder="Enter quantity"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-            />
-            {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
+          {/* Row for Quantity only */}
+          <View style={styles.rowInputs}>
+            <View style={[styles.inputGroup, styles.halfInput]}>
+              <Text style={styles.label}>Quantity *</Text>
+              <TextInput
+                style={[styles.input, errors.quantity && styles.inputError]}
+                value={quantity}
+                onChangeText={(text) => {
+                  setQuantity(text);
+                  if (errors.quantity) setErrors({ ...errors, quantity: null });
+                }}
+                placeholder="Enter quantity"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+              />
+              {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
+            </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Size</Text>
-            <CustomDropdown
-              value={size}
-              options={SIZES}
-              onSelect={setSize}
-            />
+          {/* Row for Size and Color */}
+          <View style={styles.rowInputs}>
+            <View style={[styles.inputGroup, styles.halfInput]}>
+              <Text style={styles.label}>Size</Text>
+              <CustomDropdown
+                value={size}
+                options={SIZES}
+                onSelect={setSize}
+              />
+            </View>
+            <View style={[styles.inputGroup, styles.halfInput]}>
+              <Text style={styles.label}>Color</Text>
+              <CustomDropdown
+                value={color}
+                options={COLORS}
+                onSelect={setColor}
+              />
+            </View>
           </View>
 
+          {/* Brand input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Color</Text>
-            <CustomDropdown
-              value={color}
-              options={COLORS}
-              onSelect={setColor}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Garment Type</Text>
+            <Text style={styles.label}>Brand</Text>
             <TextInput
               style={styles.input}
-              value={garmentType}
+              value={brand}
               onChangeText={(text) => {
-                setGarmentType(text);
+                setBrand(text);
               }}
-              placeholder="Enter garment type"
+              placeholder="Enter brand"
               placeholderTextColor="#999"
             />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Item Name</Text>
-            <TextInput
-              style={[styles.input, errors.name && styles.inputError]}
-              value={name}
-              onChangeText={(text) => {
-                setName(text);
-                if (errors.name) setErrors({ ...errors, name: null });
-              }}
-              placeholder="Enter item name"
-              placeholderTextColor="#999"
-            />
-            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -326,6 +324,15 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
 };
 
 const styles = StyleSheet.create({
+  rowInputs: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  halfInput: {
+    flex: 1,
+  },
+    // ...existing code...
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -357,7 +364,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   label: {
     fontSize: 16,
@@ -403,7 +410,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: '#188fff',
   },
   submitButtonText: {
     color: '#fff',
@@ -428,19 +435,20 @@ const styles = StyleSheet.create({
   notesInput: {
     textAlignVertical: 'top',
     paddingTop: 12,
+    minHeight: 144,
   },
   dropdownButton: {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#fff',
-    minHeight: 32,
-    width: '50%',
+    minHeight: 48,
+    width: '100%',
   },
   dropdownButtonText: {
     fontSize: 14,
@@ -482,7 +490,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   dropdownItemSelectedText: {
-    color: '#34C759',
+    color: '#188fff',
     fontWeight: '600',
   },
   placeholderContainer: {

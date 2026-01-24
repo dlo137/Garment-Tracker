@@ -2,15 +2,37 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Modal,
   ScrollView,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 
 export const FolderForm = ({ visible, onSubmit, onCancel }) => {
   const [name, setName] = useState('');
+  const clothingTypes = [
+    'T-Shirts',
+    'Long Sleeves',
+    'Hoodies',
+    'Crew Necks',
+    'Pants',
+    'Shorts',
+    'Dresses',
+    'Skirts',
+    'Jackets',
+    'Sweaters',
+    'Shirts',
+    'Jeans',
+    'Coats',
+    'Suits',
+    'Blazers',
+    'Activewear',
+    'Underwear',
+    'Socks',
+    'Accessories',
+    'Other',
+  ];
   const [error, setError] = useState('');
 
   const resetForm = () => {
@@ -48,7 +70,7 @@ export const FolderForm = ({ visible, onSubmit, onCancel }) => {
     >
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>New Folder</Text>
+          <Text style={styles.title}>New Stock</Text>
           <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
             <Text style={styles.closeText}>✕</Text>
           </TouchableOpacity>
@@ -56,18 +78,21 @@ export const FolderForm = ({ visible, onSubmit, onCancel }) => {
 
         <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Folder Name *</Text>
-            <TextInput
-              style={[styles.input, error && styles.inputError]}
-              value={name}
-              onChangeText={(text) => {
-                setName(text);
+            <Text style={styles.label}>Clothing Type *</Text>
+            <Picker
+              selectedValue={name}
+              onValueChange={(itemValue) => {
+                setName(itemValue);
                 if (error) setError('');
               }}
-              placeholder="Enter folder name"
-              placeholderTextColor="#999"
-              autoFocus
-            />
+              style={[styles.picker, error && styles.inputError]}
+              dropdownIconColor="#000000"
+            >
+              <Picker.Item label="Select clothing type..." value="" color="#999" />
+              {clothingTypes.map((type) => (
+                <Picker.Item key={type} label={type} value={type} />
+              ))}
+            </Picker>
             {error && <Text style={styles.errorText}>{error}</Text>}
           </View>
         </ScrollView>
@@ -124,13 +149,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 0,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 1,
   },
   input: {
     borderWidth: 1,
@@ -142,6 +167,20 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: '#ff3b30',
+  },
+  pickerWrapper: {},
+  picker: {
+    width: '100%',
+    height: 48,
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    borderRadius: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    textAlign: 'center',
   },
   errorText: {
     color: '#ff3b30',
@@ -170,7 +209,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: '#188fff',
   },
   submitButtonText: {
     color: '#fff',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 
 export const FolderCard = ({ folder, itemCount, onDelete, onPress }) => {
@@ -23,7 +23,11 @@ export const FolderCard = ({ folder, itemCount, onDelete, onPress }) => {
           style={styles.deleteButton}
           onPress={() => onDelete(folder.id)}
         >
-          <Text style={styles.deleteIcon}>🗑️</Text>
+          <Image
+            source={require('../assets/trash.png')}
+            style={styles.deleteIcon}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
       </Animated.View>
     );
@@ -60,35 +64,37 @@ export const FolderCard = ({ folder, itemCount, onDelete, onPress }) => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     marginHorizontal: 16,
-    marginVertical: 6,
+    marginVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10,
+    shadowRadius: 20,
+    elevation: 6,
+    minHeight: 80,
   },
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 12,
+    gap: 16,
   },
   iconContainer: {
-    width: 50,
-    height: 50,
+    width: 56,
+    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
+    backgroundColor: '#F2F4F8',
+    borderRadius: 16,
   },
   folderIcon: {
-    fontSize: 28,
+    fontSize: 32,
+    color: '#A0A4B8',
   },
   nameContainer: {
     flex: 1,
@@ -96,28 +102,33 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '800',
+    color: '#23272F',
+    marginBottom: 2,
   },
   itemCount: {
     fontSize: 14,
-    color: '#666',
+    color: '#6B7280',
+    fontWeight: '500',
   },
   rightSection: {
     paddingLeft: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chevron: {
-    fontSize: 28,
-    color: '#ccc',
-    fontWeight: '300',
+    fontSize: 32,
+    color: '#B6BCC8',
+    fontWeight: '700',
+    marginLeft: 2,
   },
   deleteContainer: {
     backgroundColor: '#ff3b30',
     justifyContent: 'center',
     alignItems: 'flex-end',
-    marginVertical: 6,
+    marginVertical: 8,
     marginRight: 16,
-    borderRadius: 12,
+    borderRadius: 20,
   },
   deleteButton: {
     justifyContent: 'center',
@@ -126,6 +137,8 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   deleteIcon: {
-    fontSize: 28,
+    width: 24,
+    height: 24,
+    tintColor: '#fff',
   },
 });
