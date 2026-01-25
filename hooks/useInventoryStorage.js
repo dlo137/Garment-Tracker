@@ -282,6 +282,58 @@ export const useInventoryStorage = () => {
     }
   }, []);
 
+  // Import folders and items from Excel rows
+  async function importFromExcel(rows) {
+    // Get current user's ID
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No authenticated user found');
+    // 1) group folders by unique garment type (from r.folder, which is set by normalization)
+    const folderNames = [...new Set(rows.map(r => (r.folder && r.folder.trim()) ? r.folder.trim() : 'Unsorted'))];
+    // 2) upsert folders (requires UNIQUE on (user_id, name))
+    const folderUpserts = folderNames.map(name => ({ user_id: user.id, name }));
+    const { data: folderData, error: folderErr } = await supabase
+      .from('folders')
+      .upsert(folderUpserts, { onConflict: 'user_id,name' })
+      .select('id,name');
+    if (folderErr) throw folderErr;
+    const folderIdByName = new Map(folderData.map(f => [f.name, f.id]));
+    // 3) build item inserts, assign to correct folder
+    const itemInserts = rows.map(r => {
+      const folderName = (r.folder && r.folder.trim()) ? r.folder.trim() : 'Unsorted';
+      return {
+        user_id: user.id,
+        folder_id: folderIdByName.get(folderName),
+        name: r.name,
+        quantity: r.quantity,
+        image_uri: r.image_uri || null,
+        brand: r.brand || null,
+        color: r.color || null,
+        garment_type: r.garment_type || null,
+        size: r.size || null,
+        notes: r.notes || null,
+      };
+    });
+    // Optional: basic client-side de-dupe (folder+name+size+color+brand)
+    const seen = new Set();
+    const deduped = [];
+    for (const it of itemInserts) {
+      const key = `${it.folder_id}::${it.name}::${it.size}::${it.color}::${it.brand}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(it);
+      }
+    }
+    // 4) insert items
+    const { error: itemErr } = await supabase
+      .from('items')
+      .insert(deduped);
+    if (itemErr) throw itemErr;
+    // Optionally reload data
+    await loadFolders();
+    await loadItems();
+    return { foldersCreatedOrUpdated: folderData.length, itemsInserted: deduped.length };
+  }
+
   useEffect(() => {
     const loadData = async () => {
       await loadFolders();
@@ -303,5 +355,6 @@ export const useInventoryStorage = () => {
     saveQuantity,
     updateItem,
     updateItemImage,
+    importFromExcel,
   };
 };

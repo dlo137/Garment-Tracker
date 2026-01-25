@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react
 import { Swipeable } from 'react-native-gesture-handler';
 import { ClothingTypeIcon } from './ClothingTypeIcon';
 
-export const FolderCard = ({ folder, itemCount, onDelete, onPress, theme }) => {
+export const FolderCard = ({ folder, itemCount, onDelete, onPress, theme, selected }) => {
   const renderRightActions = (progress, dragX) => {
     const trans = dragX.interpolate({
       inputRange: [-100, 0],
@@ -43,7 +43,12 @@ export const FolderCard = ({ folder, itemCount, onDelete, onPress, theme }) => {
       >
         <View style={styles.leftSection}>
           <View style={[styles.iconContainer, theme === 'dark' && { backgroundColor: '#23272F' }]}> 
-            <ClothingTypeIcon type={folder.name} color={theme === 'dark' ? '#555' : '#A0A4B8'} size={32} />
+            <ClothingTypeIcon
+              type={folder.name}
+              theme={theme}
+              color={selected ? (theme === 'dark' ? '#188fff' : '#007AFF') : (theme === 'dark' ? '#555' : '#A0A4B8')}
+              size={32}
+            />
           </View>
           <View style={styles.nameContainer}>
             <Text style={[styles.name, theme === 'dark' && { color: '#e0e0e0' }]} numberOfLines={1}>{folder.name}</Text>

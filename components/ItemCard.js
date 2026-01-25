@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { ClothingTypeIcon } from './ClothingTypeIcon';
 import { Swipeable } from 'react-native-gesture-handler';
 
 export const ItemCard = ({ item, onUpdateQuantity, onDelete, onPress, onSave, onChangeTracked, onSaveSuccess, theme }) => {
@@ -90,7 +91,7 @@ export const ItemCard = ({ item, onUpdateQuantity, onDelete, onPress, onSave, on
                   resizeMode="cover"
                 />
               ) : (
-                <Text style={styles.itemIcon}>📦</Text>
+                <ClothingTypeIcon type={item.garmentType} theme={theme} size={32} />
               )}
             </View>
 

@@ -61,6 +61,7 @@ export const InventoryScreen = () => {
           items={items}
           onUpdateQuantity={updateQuantity}
           onDeleteItem={deleteItem}
+          theme={theme}
         />
       </View>
 

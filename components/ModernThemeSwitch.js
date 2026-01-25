@@ -1,7 +1,14 @@
 import React, { useRef } from 'react';
-import { View, Pressable, Animated, StyleSheet, Easing, Platform } from 'react-native';
+import { View, Pressable, Animated, StyleSheet, Easing, Platform, Image } from 'react-native';
+
+import sun from '../assets/sun.png';
+import moon from '../assets/moon.png';
+import lightSun from '../assets/light-sun.png';
+import lightMoon from '../assets/light-moon.png';
 
 export const ModernThemeSwitch = ({ value, onToggle, accessibilityLabel = 'Toggle dark/light mode' }) => {
+  // value: false = light, true = dark
+  // Animate icon scale/opacity for feedback
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
 
   React.useEffect(() => {
@@ -13,16 +20,23 @@ export const ModernThemeSwitch = ({ value, onToggle, accessibilityLabel = 'Toggl
     }).start();
   }, [value]);
 
-  // Knob position interpolates from left (0) to right (1)
-  // For a 72px wide switch, 28px knob, 4px padding each side:
-  // Max translateX = width - knob - 2*padding = 72 - 28 - 8 = 36
-  const translateX = anim.interpolate({
+  const sunOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.4] });
+  const sunScale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1] });
+  const moonOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] });
+  const moonScale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1] });
+
+  // Swap: sunIcon is sun in light mode, lightSun in dark mode
+  // value: false = light, true = dark
+  const sunIcon = value ? lightSun : sun;
+  const moonIcon = value ? lightMoon : moon;
+
+  // Animated circle position and color
+  // Animate pill position
+  const pillLeft = anim.interpolate({ inputRange: [0, 1], outputRange: [4, 44] });
+  // Use pure white and pure dark
+  const pillColor = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: [4, 30], // 4px padding, 30px slide (keeps knob perfectly inside)
-  });
-  const knobScale = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1], // scale stays 1, but can animate on press
+    outputRange: ['#fff', '#23272F'],
   });
 
   return (
@@ -42,22 +56,33 @@ export const ModernThemeSwitch = ({ value, onToggle, accessibilityLabel = 'Toggl
       android_ripple={{ color: '#cbd5e1', borderless: true }}
       focusable={true}
     >
+      {/* Animated circle behind active icon */}
       <Animated.View
         style={[
-          styles.knob,
+          styles.pill,
           {
-            backgroundColor: value ? '#F1F5F9' : '#1E293B',
-            shadowColor: value ? '#60A5FA' : '#000',
-            shadowOpacity: value ? 0.25 : 0.15,
-            shadowRadius: value ? 8 : 4,
-            shadowOffset: { width: 0, height: 2 },
-            transform: [
-              { translateX },
-              { scale: knobScale },
-            ],
-            elevation: value ? 4 : 2,
+            left: pillLeft,
+            backgroundColor: pillColor,
           },
         ]}
+      />
+      <Animated.Image
+        source={sunIcon}
+        style={[
+          styles.icon,
+          { left: 11, opacity: sunOpacity, transform: [{ scale: sunScale }] },
+        ]}
+        resizeMode="contain"
+        accessibilityLabel="Light mode"
+      />
+      <Animated.Image
+        source={moonIcon}
+        style={[
+          styles.icon,
+          { left: 51, opacity: moonOpacity, transform: [{ scale: moonScale }] },
+        ]}
+        resizeMode="contain"
+        accessibilityLabel="Dark mode"
       />
     </Pressable>
   );
@@ -65,7 +90,7 @@ export const ModernThemeSwitch = ({ value, onToggle, accessibilityLabel = 'Toggl
 
 const styles = StyleSheet.create({
   switchBase: {
-     width: 72,
+    width: 88,
     height: 44,
     borderRadius: 22,
     flexDirection: 'row',
@@ -73,7 +98,8 @@ const styles = StyleSheet.create({
     padding: 4,
     borderWidth: 2,
     borderColor: 'transparent',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
+    backgroundColor: '#e4e7eb',
     ...Platform.select({
       web: {
         outlineStyle: 'none',
@@ -83,13 +109,23 @@ const styles = StyleSheet.create({
   switchPressed: {
     opacity: 0.92,
   },
-  knob: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#1E293B',
+  icon: {
+    width: 22,
+    height: 22,
+    position: 'absolute',
+    top: 11,
+    zIndex: 2,
+  },
+  pill: {
+    position: 'absolute',
+    top: 6,
+    width: 36,
+    height: 32,
+    borderRadius: 16,
+    zIndex: 1,
+    backgroundColor: '#fff',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.10,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,

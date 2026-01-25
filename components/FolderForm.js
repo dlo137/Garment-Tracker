@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export const FolderForm = (props) => {
   // Always destructure with fallback for theme
-  const { visible, onSubmit, onCancel, theme = 'light' } = props;
+  const { visible, onSubmit, onCancel, theme = 'light', headerColor } = props;
   // All hooks at top level
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -60,21 +60,21 @@ export const FolderForm = (props) => {
       ]}>
         <View style={styles.headerWrapper}>
           <LinearGradient
-            colors={theme === 'dark' ? ['#23272F', '#23272F'] : ['#f8fafc', '#e9e9ef']}
+            colors={headerColor ? [headerColor, headerColor] : (theme === 'dark' ? ['#23272F', '#23272F'] : ['#fff', '#fff'])}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
           >
-            <Text style={[styles.title, theme === 'dark' ? { color: '#e0e0e0' } : { color: '#23272F' }]}>New Stock</Text>
+            <Text style={[styles.title, theme === 'dark' ? { color: '#e0e0e0' } : { color: '#23272F' }]}>New Folder</Text>
             <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
               <Text style={[styles.closeText, theme === 'dark' ? { color: '#888' } : { color: '#6B7280' }]}>✕</Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>
 
-        <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
+        <ScrollView style={styles.form} contentContainerStyle={[styles.formContent, { flex: 1, justifyContent: 'flex-start', paddingTop: 170 }]}>
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, theme === 'dark' ? { color: '#bebfc1' } : { color: '#23272F' }]}>Clothing Type *</Text>
+            {/* Clothing Type label removed as requested */}
             <Picker
               selectedValue={name}
               onValueChange={(itemValue) => {

@@ -185,7 +185,14 @@ export const ItemForm = ({ visible, onSubmit, onCancel, editMode = false, itemTo
       onRequestClose={handleCancel}
     >
       <View style={[styles.container, theme === 'dark' && { backgroundColor: '#181818' }] }>
-        <View style={[styles.header, { backgroundColor: '#181818' }, theme === 'dark' && { borderBottomColor: '#333' }] }>
+        <View
+          style={[
+            styles.header,
+            theme === 'dark'
+              ? { backgroundColor: '#181818', borderBottomColor: '#333' }
+              : { backgroundColor: '#fff', borderBottomColor: '#eee' },
+          ]}
+        >
           <Text style={[styles.title, theme === 'dark' && { color: '#e0e0e0' }] }>
             {editMode
               ? 'Edit Item'
@@ -334,8 +341,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#181818',
   },
   title: {
     fontSize: 24,

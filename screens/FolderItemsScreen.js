@@ -123,7 +123,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
     <View style={[styles.container, theme === 'dark' && { backgroundColor: '#181818' }] }>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
 
-      <View style={[styles.header, { backgroundColor: '#181818' }, theme === 'dark' && { borderBottomColor: '#333' }] }>
+      <View style={[styles.header, theme === 'dark' ? { backgroundColor: '#181818', borderBottomColor: '#333' } : { backgroundColor: '#fff' }] }>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <Text style={[styles.backText, theme === 'dark' && { color: '#e0e0e0' }]}>‹</Text>
         </TouchableOpacity>
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#181818',
+    backgroundColor: '#fff',
     padding: 20,
     paddingTop: 60,
     borderBottomWidth: 1,
