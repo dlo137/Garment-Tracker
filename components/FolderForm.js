@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   View,
@@ -7,28 +8,33 @@ import {
   Modal,
   ScrollView,
   Platform,
+  TextInput,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
 
 export const FolderForm = (props) => {
-  // Always destructure with fallback for theme
   const { visible, onSubmit, onCancel, theme = 'light', headerColor } = props;
-  // All hooks at top level
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const clothingTypes = [
-    'T-Shirts', 'Long Sleeves', 'Hoodies', 'Crew Necks', 'Pants', 'Shorts', 'Dresses', 'Skirts', 'Jackets', 'Sweaters', 'Suits', 'Activewear', 'Underwear', 'Socks', 'Accessories', 'Other',
+    'T-Shirts', 'Long Sleeves', 'Hoodies', 'Crew Necks', 'Pants', 'Shorts', 'Dresses', 'Skirts', 'Jackets', 'Sweaters', 'Suits', 'Activewear', 'Underwear', 'Socks', 'Accessories'
   ];
+  const [customName, setCustomName] = useState('');
 
-  // Helper functions
   const resetForm = () => {
     setName('');
+    setCustomName('');
     setError('');
   };
+
   const validateForm = () => {
-    if (!name.trim()) {
+    let folderName = name;
+    if (name === '__custom__') {
+      folderName = customName.trim();
+    }
+    if (!folderName.trim()) {
       setError('Folder name is required');
       return false;
     }
@@ -37,7 +43,11 @@ export const FolderForm = (props) => {
   };
   const handleSubmit = () => {
     if (validateForm()) {
-      onSubmit(name.trim());
+      let folderName = name;
+      if (name === '__custom__') {
+        folderName = customName.trim();
+      }
+      onSubmit(folderName.trim());
       resetForm();
     }
   };
@@ -45,7 +55,6 @@ export const FolderForm = (props) => {
     resetForm();
     onCancel();
   };
-
   return (
     <Modal
       visible={visible}
@@ -74,21 +83,37 @@ export const FolderForm = (props) => {
 
         <ScrollView style={styles.form} contentContainerStyle={[styles.formContent, { flex: 1, justifyContent: 'flex-start', paddingTop: 170 }]}>
           <View style={styles.inputGroup}>
-            {/* Clothing Type label removed as requested */}
-            <Picker
-              selectedValue={name}
-              onValueChange={(itemValue) => {
-                setName(itemValue);
-                if (error) setError('');
-              }}
-              style={[styles.picker, error && styles.inputError, { backgroundColor: 'transparent', borderWidth: 0 }, theme === 'dark' ? { color: '#e0e0e0' } : { color: '#23272F' }]}
-              dropdownIconColor={theme === 'dark' ? '#e0e0e0' : '#3A5AFF'}
-            >
-              <Picker.Item label="Select clothing type..." value="" color={theme === 'dark' ? '#888' : '#6B7280'} />
-              {clothingTypes.map((type) => (
-                <Picker.Item key={type} label={type} value={type} color={theme === 'dark' ? '#e0e0e0' : '#23272F'} />
-              ))}
-            </Picker>
+            {name !== '__custom__' ? (
+              <Picker
+                selectedValue={name}
+                onValueChange={(itemValue) => {
+                  setName(itemValue);
+                  if (itemValue !== '__custom__') setCustomName('');
+                  if (error) setError('');
+                }}
+                style={[styles.picker, error && styles.inputError, { backgroundColor: 'transparent', borderWidth: 0 }, theme === 'dark' ? { color: '#e0e0e0' } : { color: '#23272F' }]}
+                dropdownIconColor={theme === 'dark' ? '#e0e0e0' : '#3A5AFF'}
+              >
+                <Picker.Item label="Select clothing type..." value="" color={theme === 'dark' ? '#888' : '#6B7280'} />
+                {clothingTypes.map((type) => (
+                  <Picker.Item key={type} label={type} value={type} color={theme === 'dark' ? '#e0e0e0' : '#23272F'} />
+                ))}
+                <Picker.Item label="Custom..." value="__custom__" color={theme === 'dark' ? '#e0e0e0' : '#23272F'} />
+              </Picker>
+            ) : (
+              <View style={{ marginTop: 12 }}>
+                <Text style={[styles.label, theme === 'dark' && { color: '#e0e0e0' }]}>Custom Folder Name</Text>
+                <TextInput
+                  style={[styles.input, error && styles.inputError, theme === 'dark' && { backgroundColor: '#23272F', color: '#e0e0e0', borderColor: '#333' }]}
+                  value={customName}
+                  onChangeText={setCustomName}
+                  placeholder="Enter custom folder name"
+                  placeholderTextColor={theme === 'dark' ? '#888' : '#999'}
+                  autoFocus
+                  onBlur={() => setName("")}
+                />
+              </View>
+            )}
             {error && <Text style={styles.errorText}>{error}</Text>}
           </View>
         </ScrollView>
