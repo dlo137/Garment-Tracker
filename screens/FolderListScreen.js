@@ -64,6 +64,8 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme }) => {
 
   // Replace the TODO with the import pipeline
   const handleExcelUpload = async () => {
+    // Show alert before file picker
+    alert('Your Excel spreadsheet must contain columns for brand, color, type, and size.');
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: [

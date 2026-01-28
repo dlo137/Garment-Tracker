@@ -15,6 +15,14 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
   const [sort, setSort] = useState('newest');
   const [pendingFilter, setPendingFilter] = useState({ brands: [], colors: [], sizes: [] });
   const [pendingSort, setPendingSort] = useState('newest');
+
+  // Sync pendingSort and pendingFilter to current values when opening modal
+  React.useEffect(() => {
+    if (filterModalVisible) {
+      setPendingSort(sort);
+      setPendingFilter(filter);
+    }
+  }, [filterModalVisible]);
   const unsavedChangesRef = useRef({});
 
   const folder = useMemo(() => {
@@ -31,10 +39,20 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
     folderItems.forEach(item => { if (item.color) set.add(item.color); });
     return Array.from(set);
   }, [folderItems]);
+  const allowedSizes = [
+    'SMALL', 'MEDIUM', 'LARGE', 'XL', '2XL', '3XL', '3XL', '4XL'
+  ];
   const sizeOptions = useMemo(() => {
     const set = new Set();
-    folderItems.forEach(item => { if (item.size) set.add(item.size); });
-    return Array.from(set);
+    folderItems.forEach(item => {
+      if (item.size) {
+        const upper = item.size.toUpperCase();
+        if (allowedSizes.includes(upper)) set.add(upper);
+      }
+    });
+    // Sort by allowedSizes order, ensuring no duplicates
+    const uniqueAllowed = Array.from(new Set(allowedSizes));
+    return uniqueAllowed.filter(size => set.has(size));
   }, [folderItems]);
   const brandOptions = useMemo(() => {
     const set = new Set();
@@ -50,12 +68,24 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
       if (filter.sizes.length && (!item.size || !filter.sizes.includes(item.size))) return false;
       return true;
     });
+    // If filtering by multiple colors, group by color order in filter.colors
+    if (filter.colors.length > 1) {
+      result = filter.colors.flatMap(color => result.filter(item => item.color === color));
+    }
     switch (sort) {
       case 'name-az':
-        result = result.slice().sort((a, b) => a.name.localeCompare(b.name));
+        result = result.slice().sort((a, b) => {
+          const brandA = (a.brand || '').toLowerCase();
+          const brandB = (b.brand || '').toLowerCase();
+          return brandA.localeCompare(brandB);
+        });
         break;
       case 'name-za':
-        result = result.slice().sort((a, b) => b.name.localeCompare(a.name));
+        result = result.slice().sort((a, b) => {
+          const brandA = (a.brand || '').toLowerCase();
+          const brandB = (b.brand || '').toLowerCase();
+          return brandB.localeCompare(brandA);
+        });
         break;
       case 'newest':
         result = result.slice().sort((a, b) => b.createdAt - a.createdAt);
@@ -198,7 +228,17 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
         transparent={true}
         onRequestClose={() => setFilterModalVisible(false)}
       >
-        <View style={styles.bottomSheetOverlay}>
+        <TouchableOpacity
+          style={styles.bottomSheetOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setPendingFilter({ brands: [], colors: [], sizes: [] });
+            setPendingSort('newest');
+                  setFilter({ brands: [], colors: [], sizes: [] });
+                  setSort('newest');
+            setFilterModalVisible(false);
+          }}
+        >
           <View style={[styles.bottomSheet, theme === 'dark' && { backgroundColor: '#23272F' }] }>
             <Text style={[styles.filterTitle, theme === 'dark' && { color: '#e0e0e0' }]}>Sort</Text>
             <View style={styles.sortSection}>
@@ -224,45 +264,73 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
               {/* Color chips */}
               {colorOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Color</Text>}
               <View style={styles.chipRow}>
-                {colorOptions.map(color => (
-                  <TouchableOpacity
-                    key={color}
-                    style={[
-                      styles.chip,
-                      pendingFilter.colors.includes(color) && styles.chipSelected,
-                      { borderColor: pendingFilter.colors.includes(color) ? '#23272F' : 'transparent', borderWidth: 2 }
-                    ]}
-                    onPress={() => setPendingFilter(f => ({ ...f, colors: f.colors.includes(color) ? f.colors.filter(c => c !== color) : [...f.colors, color] }))}
-                  >
-                    <Text style={[styles.chipText, { color: '#23272F' }]}>{color}</Text>
-                  </TouchableOpacity>
-                ))}
+                {colorOptions.map(color => {
+                  // Remove anything in parentheses for display
+                  const mainColor = color.replace(/\s*\(.*\)\s*/, '').trim();
+                  const isSelected = pendingFilter.colors.includes(color);
+                  return (
+                    <TouchableOpacity
+                      key={color}
+                      style={[
+                        styles.chip,
+                        isSelected && styles.chipSelected
+                      ]}
+                      onPress={() => {
+                        setPendingFilter(f => {
+                          const already = f.colors.includes(color);
+                          const next = already ? f.colors.filter(c => c !== color) : [...f.colors, color];
+                          return { ...f, colors: next };
+                        });
+                      }}
+                    >
+                      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{mainColor}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
               {/* Size chips */}
               {sizeOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Size</Text>}
               <View style={styles.chipRow}>
-                {sizeOptions.map(size => (
-                  <TouchableOpacity
-                    key={size}
-                    style={[styles.chip, pendingFilter.sizes.includes(size) && styles.chipSelected]}
-                    onPress={() => setPendingFilter(f => ({ ...f, sizes: f.sizes.includes(size) ? f.sizes.filter(s => s !== size) : [...f.sizes, size] }))}
-                  >
-                    <Text style={[styles.chipText, pendingFilter.sizes.includes(size) && styles.chipTextSelected]}>{size}</Text>
-                  </TouchableOpacity>
-                ))}
+                {sizeOptions.map(size => {
+                  const isSelected = pendingFilter.sizes.includes(size);
+                  return (
+                    <TouchableOpacity
+                      key={size}
+                      style={[styles.chip, isSelected && styles.chipSelected]}
+                      onPress={() => {
+                        setPendingFilter(f => {
+                          const already = f.sizes.includes(size);
+                          const next = already ? f.sizes.filter(s => s !== size) : [...f.sizes, size];
+                          return { ...f, sizes: next };
+                        });
+                      }}
+                    >
+                      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{size}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
               {/* Brand chips */}
               {brandOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Brand</Text>}
               <View style={styles.chipRow}>
-                {brandOptions.map(brand => (
-                  <TouchableOpacity
-                    key={brand}
-                    style={[styles.chip, pendingFilter.brands.includes(brand) && styles.chipSelected]}
-                    onPress={() => setPendingFilter(f => ({ ...f, brands: f.brands.includes(brand) ? f.brands.filter(b => b !== brand) : [...f.brands, brand] }))}
-                  >
-                    <Text style={[styles.chipText, pendingFilter.brands.includes(brand) && styles.chipTextSelected]}>{brand}</Text>
-                  </TouchableOpacity>
-                ))}
+                {brandOptions.map(brand => {
+                  const isSelected = pendingFilter.brands.includes(brand);
+                  return (
+                    <TouchableOpacity
+                      key={brand}
+                      style={[styles.chip, isSelected && styles.chipSelected]}
+                      onPress={() => {
+                        setPendingFilter(f => {
+                          const already = f.brands.includes(brand);
+                          const next = already ? f.brands.filter(b => b !== brand) : [...f.brands, brand];
+                          return { ...f, brands: next };
+                        });
+                      }}
+                    >
+                      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{brand}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </ScrollView>
             <View style={styles.bottomActionRow}>
@@ -271,6 +339,9 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
                 onPress={() => {
                   setPendingFilter({ brands: [], colors: [], sizes: [] });
                   setPendingSort('newest');
+                    setFilter({ brands: [], colors: [], sizes: [] });
+                    setSort('newest');
+                  setFilterModalVisible(false);
                 }}
               >
                 <Text style={[styles.clearButtonText, theme === 'dark' && { color: '#bebfc1' }]}>Clear</Text>
@@ -287,7 +358,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       <ItemList
@@ -381,10 +452,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     backgroundColor: '#f0f0f0',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: '#f0f0f0',
   },
   chipSelected: {
-    borderColor: '#23272F',
+    backgroundColor: '#d1d5db', // Tailwind gray-300
+    borderColor: '#000',
   },
   chipText: {
     color: '#23272F',
