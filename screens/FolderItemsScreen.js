@@ -255,7 +255,13 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
                   style={[styles.sortOption, pendingSort === opt.key && styles.sortOptionSelected, theme === 'dark' && { borderColor: '#333' }]}
                   onPress={() => setPendingSort(opt.key)}
                 >
-                  <Text style={[styles.sortOptionText, pendingSort === opt.key && styles.sortOptionTextSelected, theme === 'dark' && { color: '#e0e0e0' }]}>{opt.label}</Text>
+                  <Text style={[
+                    styles.sortOptionText,
+                    pendingSort === opt.key && styles.sortOptionTextSelected,
+                    theme === 'dark'
+                      ? { color: '#000000' }
+                      : { color: '#000000' }
+                  ]}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
