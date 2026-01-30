@@ -94,11 +94,11 @@ export const FolderForm = (props) => {
                 style={[styles.picker, error && styles.inputError, { backgroundColor: 'transparent', borderWidth: 0 }, theme === 'dark' ? { color: '#e0e0e0' } : { color: '#23272F' }]}
                 dropdownIconColor={theme === 'dark' ? '#e0e0e0' : '#3A5AFF'}
               >
-                <Picker.Item label="Select clothing type..." value="" color={theme === 'dark' ? '#888' : '#6B7280'} />
+                <Picker.Item label="Select clothing type..." value="" color="#6B7280" />
                 {clothingTypes.map((type) => (
-                  <Picker.Item key={type} label={type} value={type} color={theme === 'dark' ? '#e0e0e0' : '#23272F'} />
+                  <Picker.Item key={type} label={type} value={type} color="#6B7280" />
                 ))}
-                <Picker.Item label="Custom..." value="__custom__" color={theme === 'dark' ? '#e0e0e0' : '#23272F'} />
+                <Picker.Item label="Custom..." value="__custom__" color="#6B7280" />
               </Picker>
             ) : (
               <View style={{ marginTop: 12 }}>
