@@ -34,17 +34,18 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
   }, [items, folderId]);
 
   // Unique filter options from items
-  // Unique color options, normalized for display (removes duplicates like 'Red' and 'Red (Bright)')
+  // Unique color options, normalized for display and selection
   const colorOptions = useMemo(() => {
     const seen = new Set();
     const result = [];
     folderItems.forEach(item => {
       if (item.color) {
-        // Remove anything in parentheses for display comparison
-        const mainColor = item.color.replace(/\s*\(.*\)\s*/, '').trim().toLowerCase();
-        if (!seen.has(mainColor)) {
-          seen.add(mainColor);
-          result.push(item.color);
+        // Remove anything in parentheses for display and selection
+        const mainColor = item.color.replace(/\s*\(.*\)\s*/, '').trim();
+        const key = mainColor.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          result.push({ key, label: mainColor });
         }
       }
     });
@@ -281,26 +282,24 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
               {/* Color chips */}
               {colorOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Color</Text>}
               <View style={styles.chipRow}>
-                {colorOptions.map(color => {
-                  // Remove anything in parentheses for display
-                  const mainColor = color.replace(/\s*\(.*\)\s*/, '').trim();
-                  const isSelected = pendingFilter.colors.includes(color);
+                {colorOptions.map(opt => {
+                  const isSelected = pendingFilter.colors.includes(opt.key);
                   return (
                     <TouchableOpacity
-                      key={color}
+                      key={opt.key}
                       style={[
                         styles.chip,
                         isSelected && styles.chipSelected
                       ]}
                       onPress={() => {
                         setPendingFilter(f => {
-                          const already = f.colors.includes(color);
-                          const next = already ? f.colors.filter(c => c !== color) : [...f.colors, color];
+                          const already = f.colors.includes(opt.key);
+                          const next = already ? f.colors.filter(c => c !== opt.key) : [...f.colors, opt.key];
                           return { ...f, colors: next };
                         });
                       }}
                     >
-                      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{mainColor}</Text>
+                      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{opt.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -472,8 +471,9 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0',
   },
   chipSelected: {
-    backgroundColor: '#d1d5db', // Tailwind gray-300
+    backgroundColor: '#fff',
     borderColor: '#3A5AFF',
+    borderWidth: 2,
   },
   chipText: {
     color: '#23272F',
