@@ -34,18 +34,16 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
   }, [items, folderId]);
 
   // Unique filter options from items
-  // Unique color options, normalized for display and selection
+  // Show all unique color options, including those with parentheses
   const colorOptions = useMemo(() => {
     const seen = new Set();
     const result = [];
     folderItems.forEach(item => {
       if (item.color) {
-        // Remove anything in parentheses for display and selection
-        const mainColor = item.color.replace(/\s*\(.*\)\s*/, '').trim();
-        const key = mainColor.toLowerCase();
-        if (!seen.has(key)) {
-          seen.add(key);
-          result.push({ key, label: mainColor });
+        const color = item.color.trim();
+        if (!seen.has(color)) {
+          seen.add(color);
+          result.push({ key: color, label: color });
         }
       }
     });
@@ -257,8 +255,6 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
               {[
                 { key: 'name-az', label: 'Name (A–Z)' },
                 { key: 'name-za', label: 'Name (Z–A)' },
-                { key: 'newest', label: 'Newest' },
-                { key: 'oldest', label: 'Oldest' },
                 { key: 'qty-high', label: 'Quantity (high → low)' },
                 { key: 'qty-low', label: 'Quantity (low → high)' },
               ].map(opt => (
@@ -266,6 +262,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
                   key={opt.key}
                   style={[styles.sortOption, pendingSort === opt.key && styles.sortOptionSelected, theme === 'dark' && { borderColor: '#333' }]}
                   onPress={() => setPendingSort(opt.key)}
+                  activeOpacity={1}
                 >
                   <Text style={[
                     styles.sortOptionText,
@@ -298,6 +295,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
                           return { ...f, colors: next };
                         });
                       }}
+                      activeOpacity={1}
                     >
                       <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{opt.label}</Text>
                     </TouchableOpacity>
@@ -320,6 +318,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
                           return { ...f, sizes: next };
                         });
                       }}
+                      activeOpacity={1}
                     >
                       <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{size}</Text>
                     </TouchableOpacity>
@@ -342,6 +341,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
                           return { ...f, brands: next };
                         });
                       }}
+                      activeOpacity={1}
                     >
                       <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{brand}</Text>
                     </TouchableOpacity>
@@ -471,7 +471,6 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0',
   },
   chipSelected: {
-    backgroundColor: '#fff',
     borderColor: '#3A5AFF',
     borderWidth: 2,
   },
@@ -501,6 +500,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
+    justifyContent: 'center',
   },
   sortOption: {
     paddingVertical: 6,
