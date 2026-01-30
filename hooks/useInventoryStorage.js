@@ -282,13 +282,26 @@ export const useInventoryStorage = () => {
     }
   }, []);
 
+  // Format folder name to title case (e.g., 'T Shirts', 'Hoodies')
+  function formatFolderName(name) {
+    return String(name || '')
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   // Import folders and items from Excel rows
   async function importFromExcel(rows) {
     // Get current user's ID
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No authenticated user found');
     // 1) group folders by unique garment type (from r.folder, which is set by normalization)
-    const folderNames = [...new Set(rows.map(r => (r.folder && r.folder.trim()) ? r.folder.trim() : 'Unsorted'))];
+    const folderNames = [...new Set(rows.map(r => {
+      const raw = (r.folder && r.folder.trim()) ? r.folder.trim() : 'Unsorted';
+      return formatFolderName(raw);
+    }))];
     // 2) upsert folders (requires UNIQUE on (user_id, name))
     const folderUpserts = folderNames.map(name => ({ user_id: user.id, name }));
     const { data: folderData, error: folderErr } = await supabase
@@ -299,7 +312,8 @@ export const useInventoryStorage = () => {
     const folderIdByName = new Map(folderData.map(f => [f.name, f.id]));
     // 3) build item inserts, assign to correct folder
     const itemInserts = rows.map(r => {
-      const folderName = (r.folder && r.folder.trim()) ? r.folder.trim() : 'Unsorted';
+      const rawFolder = (r.folder && r.folder.trim()) ? r.folder.trim() : 'Unsorted';
+      const folderName = formatFolderName(rawFolder);
       return {
         user_id: user.id,
         folder_id: folderIdByName.get(folderName),

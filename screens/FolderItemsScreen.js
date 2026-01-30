@@ -34,10 +34,21 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
   }, [items, folderId]);
 
   // Unique filter options from items
+  // Unique color options, normalized for display (removes duplicates like 'Red' and 'Red (Bright)')
   const colorOptions = useMemo(() => {
-    const set = new Set();
-    folderItems.forEach(item => { if (item.color) set.add(item.color); });
-    return Array.from(set);
+    const seen = new Set();
+    const result = [];
+    folderItems.forEach(item => {
+      if (item.color) {
+        // Remove anything in parentheses for display comparison
+        const mainColor = item.color.replace(/\s*\(.*\)\s*/, '').trim().toLowerCase();
+        if (!seen.has(mainColor)) {
+          seen.add(mainColor);
+          result.push(item.color);
+        }
+      }
+    });
+    return result;
   }, [folderItems]);
   const allowedSizes = [
     'SMALL', 'MEDIUM', 'LARGE', 'XL', '2XL', '3XL', '3XL', '4XL'
@@ -350,7 +361,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
                   setFilterModalVisible(false);
                 }}
               >
-                <Text style={[styles.clearButtonText, theme === 'dark' && { color: '#bebfc1' }]}>Clear</Text>
+                <Text style={[styles.clearButtonText, { color: '#000' }]}>Clear</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.applyButton, theme === 'dark' && { backgroundColor: '#3A5AFF' }]}
@@ -462,7 +473,7 @@ const styles = StyleSheet.create({
   },
   chipSelected: {
     backgroundColor: '#d1d5db', // Tailwind gray-300
-    borderColor: '#000',
+    borderColor: '#3A5AFF',
   },
   chipText: {
     color: '#23272F',
