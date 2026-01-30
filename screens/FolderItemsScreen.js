@@ -16,13 +16,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
   const [pendingFilter, setPendingFilter] = useState({ brands: [], colors: [], sizes: [] });
   const [pendingSort, setPendingSort] = useState('newest');
 
-  // Sync pendingSort and pendingFilter to current values when opening modal
-  React.useEffect(() => {
-    if (filterModalVisible) {
-      setPendingSort(sort);
-      setPendingFilter(filter);
-    }
-  }, [filterModalVisible]);
+  // Remove sync from useEffect, move to button handler
   const unsavedChangesRef = useRef({});
 
   const folder = useMemo(() => {
@@ -238,150 +232,151 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
         transparent={true}
         onRequestClose={() => setFilterModalVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.bottomSheetOverlay}
-          activeOpacity={1}
-          onPress={() => {
-            setPendingFilter({ brands: [], colors: [], sizes: [] });
-            setPendingSort('newest');
-                  setFilter({ brands: [], colors: [], sizes: [] });
-                  setSort('newest');
-            setFilterModalVisible(false);
-          }}
-        >
+        <View style={styles.bottomSheetOverlay}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={() => {
+              setPendingFilter({ brands: [], colors: [], sizes: [] });
+              setPendingSort('newest');
+              setFilter({ brands: [], colors: [], sizes: [] });
+              setSort('newest');
+              setFilterModalVisible(false);
+            }}
+          />
           <View style={[styles.bottomSheet, theme === 'dark' && { backgroundColor: '#23272F' }] }>
-            <Text style={[styles.filterTitle, theme === 'dark' && { color: '#e0e0e0' }]}>Sort</Text>
-            <View style={styles.sortSection}>
-              {[
-                { key: 'name-az', label: 'Name (A–Z)' },
-                { key: 'name-za', label: 'Name (Z–A)' },
-                { key: 'qty-high', label: 'Quantity (high → low)' },
-                { key: 'qty-low', label: 'Quantity (low → high)' },
-              ].map(opt => (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={[styles.sortOption, pendingSort === opt.key && styles.sortOptionSelected, theme === 'dark' && { borderColor: '#333' }]}
-                  onPress={() => setPendingSort(opt.key)}
-                  activeOpacity={1}
-                >
-                  <Text style={[
-                    styles.sortOptionText,
-                    pendingSort === opt.key && styles.sortOptionTextSelected,
-                    theme === 'dark'
-                      ? { color: '#000000' }
-                      : { color: '#000000' }
-                  ]}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={[styles.filterTitle, theme === 'dark' && { color: '#e0e0e0', marginTop: 16 }]}>Quick Filters</Text>
-            <ScrollView style={{ maxHeight: 220 }}>
-              {/* Color chips */}
-              {colorOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Color</Text>}
-              <View style={styles.chipRow}>
-                {colorOptions.map(opt => {
-                  const isSelected = pendingFilter.colors.includes(opt.key);
-                  return (
-                    <TouchableOpacity
-                      key={opt.key}
-                      style={[
-                        styles.chip,
-                        isSelected && styles.chipSelected
-                      ]}
-                      onPress={() => {
-                        setPendingFilter(f => {
-                          const already = f.colors.includes(opt.key);
-                          const next = already ? f.colors.filter(c => c !== opt.key) : [...f.colors, opt.key];
-                          return { ...f, colors: next };
-                        });
-                      }}
-                      activeOpacity={1}
-                    >
-                      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{opt.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              {/* Size chips */}
-              {sizeOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Size</Text>}
-              <View style={styles.chipRow}>
-                {sizeOptions.map(size => {
-                  const isSelected = pendingFilter.sizes.includes(size);
-                  return (
-                    <TouchableOpacity
-                      key={size}
-                      style={[styles.chip, isSelected && styles.chipSelected]}
-                      onPress={() => {
-                        setPendingFilter(f => {
-                          const already = f.sizes.includes(size);
-                          const next = already ? f.sizes.filter(s => s !== size) : [...f.sizes, size];
-                          return { ...f, sizes: next };
-                        });
-                      }}
-                      activeOpacity={1}
-                    >
-                      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{size}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              {/* Brand chips */}
-              {brandOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Brand</Text>}
-              <View style={styles.chipRow}>
-                {brandOptions.map(brand => {
-                  const isSelected = pendingFilter.brands.includes(brand);
-                  return (
-                    <TouchableOpacity
-                      key={brand}
-                      style={[styles.chip, isSelected && styles.chipSelected]}
-                      onPress={() => {
-                        setPendingFilter(f => {
-                          const already = f.brands.includes(brand);
-                          const next = already ? f.brands.filter(b => b !== brand) : [...f.brands, brand];
-                          return { ...f, brands: next };
-                        });
-                      }}
-                      activeOpacity={1}
-                    >
-                      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{brand}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </ScrollView>
-            <View style={styles.bottomActionRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.clearButton, theme === 'dark' && { borderColor: '#444' }]}
-                onPress={() => {
-                  setPendingFilter({ brands: [], colors: [], sizes: [] });
-                  setPendingSort('newest');
-                    setFilter({ brands: [], colors: [], sizes: [] });
-                    setSort('newest');
-                  setFilterModalVisible(false);
-                }}
-              >
-                <Text style={[styles.clearButtonText, { color: '#000' }]}>Clear</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.applyButton, theme === 'dark' && { backgroundColor: '#3A5AFF' }]}
-                onPress={() => {
-                  setFilter(pendingFilter);
-                  setSort(pendingSort);
-                  setFilterModalVisible(false);
-                }}
-              >
-                <Text style={[styles.applyButtonText, theme === 'dark' && { color: '#fff' }]}>Apply</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+                        <Text style={[styles.filterTitle, theme === 'dark' && { color: '#e0e0e0' }]}>Sort</Text>
+                        <View style={styles.sortSection}>
+                          {[
+                            { key: 'name-az', label: 'Name (A–Z)' },
+                            { key: 'name-za', label: 'Name (Z–A)' },
+                            { key: 'qty-high', label: 'Quantity (high → low)' },
+                            { key: 'qty-low', label: 'Quantity (low → high)' },
+                          ].map(opt => (
+                            <TouchableOpacity
+                              key={opt.key}
+                              style={[styles.sortOption, pendingSort === opt.key && styles.sortOptionSelected, theme === 'dark' && { borderColor: '#333' }]}
+                              onPress={() => setPendingSort(opt.key)}
+                              activeOpacity={1}
+                            >
+                              <Text style={[
+                                styles.sortOptionText,
+                                pendingSort === opt.key && styles.sortOptionTextSelected,
+                                theme === 'dark'
+                                  ? { color: '#000000' }
+                                  : { color: '#000000' }
+                              ]}>{opt.label}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        <Text style={[styles.filterTitle, theme === 'dark' && { color: '#e0e0e0', marginTop: 16 }]}>Quick Filters</Text>
+                        <ScrollView style={{ maxHeight: 220 }}>
+                          {/* Color chips */}
+                          {colorOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Color</Text>}
+                          <View style={styles.chipRow}>
+                            {colorOptions.map(opt => {
+                              const isSelected = pendingFilter.colors.includes(opt.key);
+                              return (
+                                <TouchableOpacity
+                                  key={opt.key}
+                                  style={[
+                                    styles.chip,
+                                    isSelected && styles.chipSelected
+                                  ]}
+                                  onPress={() => {
+                                    setPendingFilter(f => {
+                                      const already = f.colors.includes(opt.key);
+                                      const next = already ? f.colors.filter(c => c !== opt.key) : [...f.colors, opt.key];
+                                      return { ...f, colors: next };
+                                    });
+                                  }}
+                                  activeOpacity={1}
+                                >
+                                  <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{opt.label}</Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                          {/* Size chips */}
+                          {sizeOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Size</Text>}
+                          <View style={styles.chipRow}>
+                            {sizeOptions.map(size => {
+                              const isSelected = pendingFilter.sizes.includes(size);
+                              return (
+                                <TouchableOpacity
+                                  key={size}
+                                  style={[styles.chip, isSelected && styles.chipSelected]}
+                                  onPress={() => {
+                                    setPendingFilter(f => {
+                                      const already = f.sizes.includes(size);
+                                      const next = already ? f.sizes.filter(s => s !== size) : [...f.sizes, size];
+                                      return { ...f, sizes: next };
+                                    });
+                                  }}
+                                  activeOpacity={1}
+                                >
+                                  <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{size}</Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                          {/* Brand chips */}
+                          {brandOptions.length > 0 && <Text style={[styles.filterLabel, theme === 'dark' && { color: '#e0e0e0' }]}>Brand</Text>}
+                          <View style={styles.chipRow}>
+                            {brandOptions.map(brand => {
+                              const isSelected = pendingFilter.brands.includes(brand);
+                              return (
+                                <TouchableOpacity
+                                  key={brand}
+                                  style={[styles.chip, isSelected && styles.chipSelected]}
+                                  onPress={() => {
+                                    setPendingFilter(f => {
+                                      const already = f.brands.includes(brand);
+                                      const next = already ? f.brands.filter(b => b !== brand) : [...f.brands, brand];
+                                      return { ...f, brands: next };
+                                    });
+                                  }}
+                                  activeOpacity={1}
+                                >
+                                  <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{brand}</Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </ScrollView>
+                        <View style={styles.bottomActionRow}>
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.clearButton, theme === 'dark' && { borderColor: '#444' }]}
+                            onPress={() => {
+                              setPendingFilter({ brands: [], colors: [], sizes: [] });
+                              setPendingSort('newest');
+                              setFilter({ brands: [], colors: [], sizes: [] });
+                              setSort('newest');
+                              setFilterModalVisible(false);
+                            }}
+                          >
+                            <Text style={[styles.clearButtonText, { color: '#000' }]}>Clear</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.applyButton, theme === 'dark' && { backgroundColor: '#3A5AFF' }]}
+                            onPress={() => {
+                              setFilter(pendingFilter);
+                              setSort(pendingSort);
+                              setFilterModalVisible(false);
+                            }}
+                          >
+                            <Text style={[styles.applyButtonText, theme === 'dark' && { color: '#fff' }]}>Apply</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  </Modal>
 
       <ItemList
         items={filteredItems}
-        onUpdateQuantity={updateQuantity}
-        onDeleteItem={deleteItem}
         onItemPress={handleItemPress}
+        onDelete={deleteItem}
+        onQuantityChange={updateQuantity}
         onSaveQuantity={saveQuantity}
         onChangeTracked={handleChangeTracked}
         onSaveSuccess={handleSaveQuantitySuccess}
@@ -500,7 +495,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
-    justifyContent: 'center',
   },
   sortOption: {
     paddingVertical: 6,
@@ -530,7 +524,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -547,9 +541,8 @@ const styles = StyleSheet.create({
   },
   filterTitle: {
     fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 16,
-    color: '#23272F',
+    fontWeight: 'bold',
+    marginBottom: 12,
     textAlign: 'center',
   },
   filterLabel: {
