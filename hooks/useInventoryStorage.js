@@ -71,7 +71,7 @@ export const useInventoryStorage = () => {
 
       if (!user) {
         console.error('No authenticated user found');
-        return;
+        return { success: false, error: 'Not authenticated' };
       }
 
       const { data, error } = await supabase
@@ -85,7 +85,13 @@ export const useInventoryStorage = () => {
 
       if (error) {
         console.error('Error adding folder:', error.message);
-        return;
+
+        // Check for duplicate constraint violation
+        if (error.code === '23505' || error.message.includes('unique constraint')) {
+          return { success: false, error: 'duplicate', message: 'A folder with this name already exists' };
+        }
+
+        return { success: false, error: error.message };
       }
 
       // Add to local state
@@ -96,8 +102,10 @@ export const useInventoryStorage = () => {
       };
 
       setFolders((prevFolders) => [newFolder, ...prevFolders]);
+      return { success: true, folder: newFolder };
     } catch (error) {
       console.error('Error adding folder:', error);
+      return { success: false, error: error.message };
     }
   }, []);
 

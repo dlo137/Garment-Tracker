@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { supabase } from './lib/supabaseClient';
+import { initializeProfile } from './lib/profileService';
 import { FolderListScreen } from './screens/FolderListScreen';
 import { FolderItemsScreen } from './screens/FolderItemsScreen';
 import { ThemeProvider, useTheme } from './hooks/useTheme';
@@ -39,6 +40,8 @@ function MainApp() {
       if (session) {
         // User already has an active session - they're authenticated
         console.log('📱 Existing session found:', session.user.id);
+        // Sync profile to Supabase (non-blocking)
+        await initializeProfile(session.user.id);
         setIsAuthenticating(false);
       } else {
         // No session - sign in anonymously
@@ -53,6 +56,8 @@ function MainApp() {
         }
 
         console.log('✅ Anonymous sign-in successful:', data.user.id);
+        // Create profile for new user
+        await initializeProfile(data.user.id);
         setIsAuthenticating(false);
       }
     } catch (error) {
