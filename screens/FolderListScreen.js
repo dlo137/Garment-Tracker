@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert } from 'react-native';
 import { ModernThemeSwitch } from '../components/ModernThemeSwitch';
 import { StatusBar } from 'expo-status-bar';
 import { useInventoryStorage } from '../hooks/useInventoryStorage';
@@ -14,9 +14,16 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme }) => {
   const { folders, items, isLoading, addFolder, deleteFolder, importFromExcel } = useInventoryStorage();
   const [modalVisible, setModalVisible] = useState(false);
 
-  const handleAddFolder = (name) => {
-    addFolder(name);
-    setModalVisible(false);
+  const handleAddFolder = async (name) => {
+    const result = await addFolder(name);
+
+    if (result?.success) {
+      setModalVisible(false);
+    } else if (result?.error === 'duplicate') {
+      Alert.alert('Folder Exists', 'A folder with this name already exists. Please choose a different name.');
+    } else {
+      Alert.alert('Error', result?.message || 'Failed to create folder. Please try again.');
+    }
   };
 
   // Reads an Excel file at the given URI and returns an array of row objects

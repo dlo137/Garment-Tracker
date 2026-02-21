@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,13 @@ export const FolderForm = (props) => {
     setError('');
   };
 
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!visible) {
+      resetForm();
+    }
+  }, [visible]);
+
   const validateForm = () => {
     let folderName = name;
     if (name === '__custom__') {
@@ -48,7 +55,7 @@ export const FolderForm = (props) => {
         folderName = customName.trim();
       }
       onSubmit(folderName.trim());
-      resetForm();
+      // Don't reset here - form resets when modal closes via useEffect
     }
   };
   const handleCancel = () => {
