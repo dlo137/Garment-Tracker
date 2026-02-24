@@ -8,7 +8,7 @@ import { FolderItemsScreen } from './screens/FolderItemsScreen';
 import { ThemeProvider, useTheme } from './hooks/useTheme';
 
 function MainApp() {
-  const { theme, toggleTheme } = useTheme(); // Always call hooks at the top
+  const { theme, toggleTheme } = useTheme(); // Always call hooks at the top.
   const [screen, setScreen] = useState('folders');
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
