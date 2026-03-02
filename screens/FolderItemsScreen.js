@@ -27,7 +27,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme, onNavi
     return items.filter((item) => item.folderId === folderId);
   }, [items, folderId]);
 
-  const atItemLimit = profile?.plan !== 'pro' && folderItems.length >= 2;
+  const atItemLimit = profile?.is_pro_version !== true && folderItems.length >= 2;
 
   // Unique filter options from items
   // Show all unique color options, including those with parentheses

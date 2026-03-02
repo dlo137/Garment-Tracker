@@ -6,6 +6,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     user_id uuid UNIQUE NOT NULL,
     username text,
     email text,
+    plan text DEFAULT 'free',
+    purchase_time timestamptz,
+    price text,
+    subscription_id text,
+    product_id text,
+    is_pro_version boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT timezone('utc', now()),
     updated_at timestamp with time zone DEFAULT timezone('utc', now())
 );

@@ -11,7 +11,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription }) => {
   const { folders, items, isLoading, addFolder, deleteFolder, importFromExcel, profile } = useInventoryStorage();
-  const isPro = profile?.plan === 'pro';
+  const isPro = profile?.is_pro_version === true;
   const atFolderLimit = !isPro && folders.length >= 1;
   const [modalVisible, setModalVisible] = useState(false);
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
@@ -26,7 +26,7 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
         'Get unlimited folders, items, and more when upgrading',
         [
           { text: 'Upgrade', onPress: onNavigateToSubscription },
-          { text: 'Maybe Later', style: 'cancel' },
+          { text: 'Maybe Later' },
         ]
       );
       return;

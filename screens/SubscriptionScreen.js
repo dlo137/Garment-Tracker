@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Alert, Platform, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,8 +8,8 @@ import { supabase } from '../lib/supabaseClient';
 
 // Platform-specific product IDs for plan selection
 const PLAN_PRODUCT_IDS = {
-  yearly: yearly.plan.id,
-  monthly: monthly.plan.id,
+  yearly: PRODUCT_IDS.YEARLY,
+  monthly: PRODUCT_IDS.MONTHLY,
 };
 
 export default function SubscriptionScreen({ navigation }) {
@@ -83,26 +83,86 @@ export default function SubscriptionScreen({ navigation }) {
   const simulatePurchase = async (plan) => {
     setCurrentPurchaseAttempt(plan);
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('User not authenticated');
+      // Step 1: Get authenticated user
+      const { data: authData, error: userError } = await supabase.auth.getUser();
+      console.log('[SUBSCRIPTION] Step 1 - Auth:', { userId: authData?.user?.id, error: userError?.message });
 
-      const { error: updateError } = await supabase
+      if (userError || !authData?.user) throw new Error('User not authenticated: ' + (userError?.message || 'no user'));
+      const user = authData.user;
+
+      // Step 2: Check if profile row exists
+      const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
-        .update({
-          plan: 'pro',
-          updated_at: new Date().toISOString(),
-        })
+        .select('*')
         .eq('user_id', user.id);
 
-      if (updateError) throw updateError;
+      console.log('[SUBSCRIPTION] Step 2 - Existing profile:', {
+        found: existingProfile?.length,
+        profile: existingProfile?.[0],
+        error: fetchError?.message,
+      });
+
+      if (fetchError) {
+        Alert.alert('Profile Fetch Error', fetchError.message);
+        throw fetchError;
+      }
+
+      const now = new Date().toISOString();
+      const payload = {
+        plan: plan,
+        is_pro_version: true,
+        purchase_time: now,
+        price: plan === 'yearly' ? '$24.99' : '$2.99',
+        subscription_id: `sim_${Date.now()}`,
+        product_id: PLAN_PRODUCT_IDS[plan] || plan,
+        updated_at: now,
+      };
+
+      if (!existingProfile || existingProfile.length === 0) {
+        // No profile row — insert one
+        console.log('[SUBSCRIPTION] No profile found, inserting...');
+        const { data: insertData, error: insertError } = await supabase
+          .from('profiles')
+          .insert({ user_id: user.id, ...payload })
+          .select();
+
+        console.log('[SUBSCRIPTION] Insert result:', { data: insertData, error: insertError?.message });
+        if (insertError) {
+          Alert.alert('Insert Error', insertError.message);
+          throw insertError;
+        }
+      } else {
+        // Profile exists — update it
+        console.log('[SUBSCRIPTION] Step 3 - Updating with:', payload);
+        const { data: updateData, error: updateError } = await supabase
+          .from('profiles')
+          .update(payload)
+          .eq('user_id', user.id)
+          .select();
+
+        console.log('[SUBSCRIPTION] Step 4 - Update result:', {
+          data: updateData,
+          error: updateError?.message,
+          rowsAffected: updateData?.length,
+        });
+
+        if (updateError) {
+          Alert.alert('Update Error', updateError.message);
+          throw updateError;
+        }
+        if (!updateData || updateData.length === 0) {
+          Alert.alert('Update Failed', 'Update ran but 0 rows affected. Check RLS policies in Supabase.');
+          throw new Error('0 rows updated — possible RLS issue');
+        }
+      }
 
       await AsyncStorage.multiSet([
         ['profile.plan', plan],
         ['profile.is_pro', 'true'],
-        ['profile.purchase_time', new Date().toISOString()],
+        ['profile.purchase_time', now],
       ]);
 
-      console.log(`[SUBSCRIPTION] ✅ Expo Go: Simulated ${plan} purchase`);
+      console.log(`[SUBSCRIPTION] ✅ Simulated ${plan} purchase complete`);
       setCurrentPurchaseAttempt(null);
       navigation.goBack();
     } catch (error) {
@@ -141,14 +201,27 @@ export default function SubscriptionScreen({ navigation }) {
     try {
       await IAPService.purchaseProduct(product.id ?? product.productId, offerToken);
 
-      // Update Supabase profile with pro plan
+      // Get the actual transaction details from the completed purchase
+      const lastPurchase = IAPService.getLastPurchaseResult();
+      const transactionId = lastPurchase?.id ?? lastPurchase?.transactionId ?? '';
+
+      // Update Supabase profile with pro plan + subscription details
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const now = new Date().toISOString();
+        const purchasedProductId = product.id ?? product.productId;
+        const purchasePrice = product.localizedPrice ?? product.price ?? '';
+
         await supabase
           .from('profiles')
           .update({
-            plan: 'pro',
-            updated_at: new Date().toISOString(),
+            plan: selectedPlan,
+            is_pro_version: true,
+            purchase_time: now,
+            price: String(purchasePrice),
+            subscription_id: transactionId,
+            product_id: purchasedProductId,
+            updated_at: now,
           })
           .eq('user_id', user.id);
       }
@@ -178,14 +251,25 @@ export default function SubscriptionScreen({ navigation }) {
       console.log('[SUBSCRIPTION] Attempting to restore purchases...');
       const results = await IAPService.restorePurchases();
       if (results.length > 0) {
+        // Determine the plan from the restored purchase
+        const restoredProduct = results[0];
+        const restoredProductId = (restoredProduct?.productId ?? '').toLowerCase();
+        const restoredPlan = restoredProductId.includes('yearly') ? 'yearly' : 'monthly';
+        const restoredTxId = restoredProduct?.id ?? restoredProduct?.transactionId ?? '';
+
         // Update Supabase profile
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          const now = new Date().toISOString();
           await supabase
             .from('profiles')
             .update({
-              plan: 'pro',
-              updated_at: new Date().toISOString(),
+              plan: restoredPlan,
+              is_pro_version: true,
+              purchase_time: now,
+              subscription_id: restoredTxId,
+              product_id: restoredProduct?.productId ?? '',
+              updated_at: now,
             })
             .eq('user_id', user.id);
         }
@@ -212,7 +296,13 @@ export default function SubscriptionScreen({ navigation }) {
     }
   };
 
-  const formatPrice = (_plan, fallbackPrice) => {
+  const formatPrice = (plan, fallbackPrice) => {
+    const planId = PLAN_PRODUCT_IDS[plan];
+    const product = products.find((p) => (p.id ?? p.productId) === planId);
+    if (product) {
+      const price = product.localizedPrice ?? product.price;
+      if (price) return plan === 'yearly' ? `${price}/year` : `${price}/month`;
+    }
     return fallbackPrice;
   };
 
@@ -233,16 +323,17 @@ export default function SubscriptionScreen({ navigation }) {
         <Text style={styles.alreadyPurchasedText}>Restore Purchases</Text>
       </TouchableOpacity>
 
-      <Animated.ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-        style={{ opacity: fadeAnim, flex: 1 }}
-      >
+      {/* Header area - near the top */}
+      <Animated.View style={{ opacity: fadeAnim, paddingTop: 140, paddingHorizontal: 24 }}>
         {/* Logo/Icon with Glow */}
         <View style={styles.logoContainer}>
           <View style={styles.logoGlow}>
             <View style={styles.logo}>
-              <Text style={styles.logoEmoji}>📦</Text>
+              <Image
+                source={require('../assets/icon.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
           </View>
         </View>
@@ -251,10 +342,16 @@ export default function SubscriptionScreen({ navigation }) {
         <View style={styles.header}>
           <Text style={styles.title}>Unlock Full Inventory Power</Text>
           <Text style={styles.subtitle}>
-            Unlimited folders, items, and cloud sync. Manage your entire inventory with no limits.
+            Stop losing track of what you own. Unlimited folders, items, and more. Organize everything in one place, find anything in seconds, and stay in total control of your inventory.
           </Text>
         </View>
+      </Animated.View>
 
+      {/* Spacer pushes plans + button to bottom */}
+      <View style={{ flex: 1 }} />
+
+      {/* Plans + Button - Fixed at Bottom */}
+      <View style={styles.buttonContainer}>
         {/* Plans */}
         <View style={styles.plansContainer}>
           {/* Monthly Plan */}
@@ -272,7 +369,7 @@ export default function SubscriptionScreen({ navigation }) {
               <Text style={styles.planName}>Monthly</Text>
             </View>
             <View style={styles.planPricing}>
-              <Text style={styles.planPrice}>{formatPrice('monthly', '$4.99/month')}</Text>
+              <Text style={styles.planPrice}>{formatPrice('monthly', '2.99/month')}</Text>
             </View>
           </TouchableOpacity>
 
@@ -295,15 +392,13 @@ export default function SubscriptionScreen({ navigation }) {
               <Text style={styles.planName}>Yearly</Text>
             </View>
             <View style={styles.planPricing}>
-              <Text style={styles.planPrice}>{formatPrice('yearly', '$29.99/year')}</Text>
-              <Text style={styles.planSubtext}>Save 50%</Text>
+              <Text style={styles.planPrice}>{formatPrice('yearly', '$24.99/year')}</Text>
+              <Text style={styles.planSubtext}>Save 30%</Text>
             </View>
           </TouchableOpacity>
         </View>
-      </Animated.ScrollView>
 
-      {/* Continue Button - Fixed at Bottom */}
-      <View style={styles.buttonContainer}>
+        {/* Subscribe Button */}
         <TouchableOpacity
           style={[styles.continueButton, (!iapReady || loadingProducts || currentPurchaseAttempt) && { opacity: 0.6 }]}
           onPress={handleContinue}
@@ -316,7 +411,7 @@ export default function SubscriptionScreen({ navigation }) {
             style={styles.continueGradient}
           >
             <Text style={styles.continueText}>
-              {!iapReady ? 'Connecting...' : loadingProducts ? 'Loading...' : currentPurchaseAttempt ? 'Processing...' : 'Subscribe Now'}
+              {!iapReady ? 'Connecting...' : loadingProducts ? 'Loading...' : currentPurchaseAttempt ? 'Processing...' : 'Get Started'}
             </Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -389,8 +484,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoEmoji: {
-    fontSize: 64,
+  logoImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 20,
   },
   header: {
     marginBottom: 40,

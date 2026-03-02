@@ -4,7 +4,30 @@ import { supabase } from '../lib/supabaseClient';
 export const useInventoryStorage = () => {
   const [items, setItems] = useState([]);
   const [folders, setFolders] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const loadProfile = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading profile:', error.message);
+        return;
+      }
+
+      setProfile(data);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  }, []);
 
   const loadFolders = useCallback(async () => {
     try {
@@ -360,14 +383,16 @@ export const useInventoryStorage = () => {
     const loadData = async () => {
       await loadFolders();
       await loadItems();
+      await loadProfile();
       setIsLoading(false);
     };
     loadData();
-  }, [loadFolders, loadItems]);
+  }, [loadFolders, loadItems, loadProfile]);
 
   return {
     folders,
     items,
+    profile,
     isLoading,
     addFolder,
     deleteFolder,
@@ -378,5 +403,6 @@ export const useInventoryStorage = () => {
     updateItem,
     updateItemImage,
     importFromExcel,
+    refreshProfile: loadProfile,
   };
 };
