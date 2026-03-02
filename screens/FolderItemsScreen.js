@@ -5,8 +5,8 @@ import { useInventoryStorage } from '../hooks/useInventoryStorage';
 import { ItemList } from '../components/ItemList';
 import { ItemForm } from '../components/ItemForm';
 
-export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
-  const { folders, items, addItem, deleteItem, updateQuantity, saveQuantity, updateItem, updateItemImage } = useInventoryStorage();
+export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme, onNavigateToSubscription }) => {
+  const { folders, items, addItem, deleteItem, updateQuantity, saveQuantity, updateItem, updateItemImage, profile } = useInventoryStorage();
   const [modalVisible, setModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -26,6 +26,8 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
   const folderItems = useMemo(() => {
     return items.filter((item) => item.folderId === folderId);
   }, [items, folderId]);
+
+  const atItemLimit = profile?.plan !== 'pro' && folderItems.length >= 2;
 
   // Unique filter options from items
   // Show all unique color options, including those with parentheses
@@ -136,6 +138,17 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme }) => {
   };
 
   const handleOpenAddModal = () => {
+    if (atItemLimit) {
+      Alert.alert(
+        'Item Limit Reached',
+        'Upgrade to pro to add more items.',
+        [
+          { text: 'Upgrade', onPress: onNavigateToSubscription },
+          { text: 'Maybe Later' },
+        ]
+      );
+      return;
+    }
     setEditMode(false);
     setSelectedItem(null);
     setModalVisible(true);

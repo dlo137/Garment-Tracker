@@ -9,13 +9,14 @@ import {
   ScrollView,
   Platform,
   TextInput,
+  Alert,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
 
 export const FolderForm = (props) => {
-  const { visible, onSubmit, onCancel, theme = 'light', headerColor } = props;
+  const { visible, onSubmit, onCancel, theme = 'light', headerColor, atFolderLimit = false, onUpgrade } = props;
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const clothingTypes = [
@@ -48,6 +49,9 @@ export const FolderForm = (props) => {
     setError('');
     return true;
   };
+  const selectedName = name === '__custom__' ? customName.trim() : name;
+  const isAtLimitWithSelection = atFolderLimit && selectedName.length > 0;
+
   const handleSubmit = () => {
     if (validateForm()) {
       let folderName = name;
@@ -55,7 +59,6 @@ export const FolderForm = (props) => {
         folderName = customName.trim();
       }
       onSubmit(folderName.trim());
-      // Don't reset here - form resets when modal closes via useEffect
     }
   };
   const handleCancel = () => {
@@ -140,13 +143,10 @@ export const FolderForm = (props) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, styles.submitButton, theme === 'dark'
-              ? { backgroundColor: '#3A5AFF' }
-              : { backgroundColor: '#3A5AFF' }
-            ]}
+            style={[styles.button, styles.submitButton]}
             onPress={handleSubmit}
           >
-            <Text style={[styles.submitButtonText, { color: '#fff' }]}>Create Folder</Text>
+            <Text style={styles.submitButtonText}>Create Folder</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -263,7 +263,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: '#188fff',
+    backgroundColor: '#3A5AFF',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#b0b8c8',
   },
   submitButtonText: {
     color: '#fff',

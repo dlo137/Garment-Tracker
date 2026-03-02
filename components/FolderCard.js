@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react
 import { Swipeable } from 'react-native-gesture-handler';
 import { ClothingTypeIcon } from './ClothingTypeIcon';
 
-export const FolderCard = ({ folder, itemCount, onDelete, onPress, theme, selected }) => {
+export const FolderCard = ({ folder, itemCount, onDelete, onPress, theme, selected, onUpgrade }) => {
+  const isLocked = folder.locked === true;
+
   const renderRightActions = (progress, dragX) => {
     const trans = dragX.interpolate({
       inputRange: [-100, 0],
@@ -34,33 +36,48 @@ export const FolderCard = ({ folder, itemCount, onDelete, onPress, theme, select
     );
   };
 
+  const cardContent = (
+    <TouchableOpacity
+      style={[
+        styles.card,
+        theme === 'dark' && { backgroundColor: '#363738', shadowColor: '#000' },
+        isLocked && styles.cardLocked,
+      ]}
+      onPress={() => isLocked ? onUpgrade && onUpgrade() : onPress(folder.id)}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.leftSection, isLocked && { opacity: 0.4 }]}>
+        <View style={[styles.iconContainer, theme === 'dark' && { backgroundColor: '#23272F' }]}>
+          <ClothingTypeIcon
+            type={folder.name}
+            theme={theme}
+            color={selected ? (theme === 'dark' ? '#188fff' : '#007AFF') : (theme === 'dark' ? '#555' : '#A0A4B8')}
+            size={32}
+          />
+        </View>
+        <View style={styles.nameContainer}>
+          <Text style={[styles.name, theme === 'dark' && { color: '#e0e0e0' }]} numberOfLines={1}>{folder.name}</Text>
+          <Text style={[styles.itemCount, theme === 'dark' && { color: '#888' }]}>
+            {itemCount} {itemCount === 1 ? 'item' : 'items'}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.rightSection}>
+        {isLocked
+          ? <Text style={styles.lockIcon}>🔒</Text>
+          : <Text style={[styles.chevron, theme === 'dark' && { color: '#555' }]}>›</Text>
+        }
+      </View>
+    </TouchableOpacity>
+  );
+
+  if (isLocked) {
+    return cardContent;
+  }
+
   return (
     <Swipeable renderRightActions={renderRightActions}>
-      <TouchableOpacity
-        style={[styles.card, theme === 'dark' && { backgroundColor: '#363738', shadowColor: '#000' }]}
-        onPress={() => onPress(folder.id)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.leftSection}>
-          <View style={[styles.iconContainer, theme === 'dark' && { backgroundColor: '#23272F' }]}> 
-            <ClothingTypeIcon
-              type={folder.name}
-              theme={theme}
-              color={selected ? (theme === 'dark' ? '#188fff' : '#007AFF') : (theme === 'dark' ? '#555' : '#A0A4B8')}
-              size={32}
-            />
-          </View>
-          <View style={styles.nameContainer}>
-            <Text style={[styles.name, theme === 'dark' && { color: '#e0e0e0' }]} numberOfLines={1}>{folder.name}</Text>
-            <Text style={[styles.itemCount, theme === 'dark' && { color: '#888' }]}>
-              {itemCount} {itemCount === 1 ? 'item' : 'items'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.rightSection}>
-          <Text style={[styles.chevron, theme === 'dark' && { color: '#555' }]}>›</Text>
-        </View>
-      </TouchableOpacity>
+      {cardContent}
     </Swipeable>
   );
 };
@@ -144,5 +161,11 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     tintColor: '#fff',
+  },
+  cardLocked: {
+    opacity: 0.5,
+  },
+  lockIcon: {
+    fontSize: 20,
   },
 });

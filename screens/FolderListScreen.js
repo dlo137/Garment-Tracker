@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert } from 'react-native';
-import { ModernThemeSwitch } from '../components/ModernThemeSwitch';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useInventoryStorage } from '../hooks/useInventoryStorage';
 import { FolderList } from '../components/FolderList';
@@ -10,11 +9,29 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as XLSX from 'xlsx';
 import * as FileSystem from 'expo-file-system/legacy';
 
-export const FolderListScreen = ({ onFolderPress, theme, toggleTheme }) => {
-  const { folders, items, isLoading, addFolder, deleteFolder, importFromExcel } = useInventoryStorage();
+export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription }) => {
+  const { folders, items, isLoading, addFolder, deleteFolder, importFromExcel, profile } = useInventoryStorage();
+  const isPro = profile?.plan === 'pro';
+  const atFolderLimit = !isPro && folders.length >= 1;
   const [modalVisible, setModalVisible] = useState(false);
+  const [accountMenuVisible, setAccountMenuVisible] = useState(false);
+  const [lockedFolder, setLockedFolder] = useState(null);
 
   const handleAddFolder = async (name) => {
+    if (atFolderLimit) {
+      setModalVisible(false);
+      setLockedFolder({ id: `locked-${Date.now()}`, name, locked: true });
+      Alert.alert(
+        'Upgrade to Pro',
+        'Get unlimited folders, items, and more when upgrading',
+        [
+          { text: 'Upgrade', onPress: onNavigateToSubscription },
+          { text: 'Maybe Later', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+
     const result = await addFolder(name);
 
     if (result?.success) {
@@ -25,6 +42,8 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme }) => {
       Alert.alert('Error', result?.message || 'Failed to create folder. Please try again.');
     }
   };
+
+  const displayFolders = lockedFolder ? [...folders, lockedFolder] : folders;
 
   // Reads an Excel file at the given URI and returns an array of row objects
   async function readSpreadsheetToRows(uri, ext) {
@@ -128,18 +147,23 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme }) => {
       <View style={[styles.header, theme === 'dark' && { backgroundColor: '#181818', borderBottomColor: '#333' }]}> 
         <View style={styles.headerRow}>
           <Text style={[styles.title, theme === 'dark' && { color: '#e0e0e0' }]}>Inventory</Text>
-          <View style={{ paddingRight: 12 }}>
-            <ModernThemeSwitch value={theme === 'dark'} onToggle={toggleTheme} />
-          </View>
+          <TouchableOpacity
+            style={styles.accountButton}
+            onPress={() => setAccountMenuVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.accountIcon}>👤</Text>
+          </TouchableOpacity>
         </View>
         <Text style={[styles.subtitle, theme === 'dark' && { color: '#888' }]}>{folders.length} folders</Text>
       </View>
       <FolderList
-        folders={folders}
+        folders={displayFolders}
         items={items}
         onDeleteFolder={deleteFolder}
         onFolderPress={onFolderPress}
         theme={theme}
+        onUpgrade={onNavigateToSubscription}
       />
       {/* Floating action buttons: Excel icon only, raised position */}
       <View style={{ position: 'absolute', right: 20, bottom: 36, flexDirection: 'row', alignItems: 'center' }}>
@@ -162,7 +186,45 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme }) => {
         onCancel={() => setModalVisible(false)}
         theme={theme}
         headerColor={theme === 'dark' ? '#181818' : undefined}
+        atFolderLimit={atFolderLimit}
+        onUpgrade={onNavigateToSubscription}
       />
+
+      {/* Account dropdown menu */}
+      <Modal
+        visible={accountMenuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAccountMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setAccountMenuVisible(false)}
+        >
+          <View style={[styles.menuCard, theme === 'dark' && { backgroundColor: '#23272F', borderColor: '#333' }]}>
+            {[
+              { label: 'Profile' },
+              { label: 'Sign Up' },
+              { label: 'Sign In' },
+            ].map((item, index, arr) => (
+              <TouchableOpacity
+                key={item.label}
+                style={[
+                  styles.menuItem,
+                  index < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme === 'dark' ? '#333' : '#f0f0f0' },
+                ]}
+                onPress={() => setAccountMenuVisible(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.menuItemLabel, theme === 'dark' && { color: '#e0e0e0' }]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -173,9 +235,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  toggleButton: {
-    padding: 8,
-    marginLeft: 12,
+  accountButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
+  },
+  accountIcon: {
+    fontSize: 20,
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 110,
+    paddingRight: 16,
+  },
+  menuCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  menuItemLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#23272F',
   },
   container: {
     flex: 1,

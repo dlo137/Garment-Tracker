@@ -5,6 +5,7 @@ import { supabase } from './lib/supabaseClient';
 import { initializeProfile } from './lib/profileService';
 import { FolderListScreen } from './screens/FolderListScreen';
 import { FolderItemsScreen } from './screens/FolderItemsScreen';
+import SubscriptionScreen from './screens/SubscriptionScreen';
 import { ThemeProvider, useTheme } from './hooks/useTheme';
 
 function MainApp() {
@@ -77,6 +78,10 @@ function MainApp() {
     setSelectedFolderId(null);
   };
 
+  const handleNavigateToSubscription = () => {
+    setScreen('subscription');
+  };
+
   // Show loading screen while authenticating
   if (isAuthenticating) {
     return (
@@ -103,7 +108,7 @@ function MainApp() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {screen === 'folders' && (
-        <FolderListScreen onFolderPress={handleFolderPress} theme={theme} toggleTheme={toggleTheme} />
+        <FolderListScreen onFolderPress={handleFolderPress} theme={theme} toggleTheme={toggleTheme} onNavigateToSubscription={handleNavigateToSubscription} />
       )}
       {screen === 'folderItems' && selectedFolderId && (
         <FolderItemsScreen
@@ -111,7 +116,11 @@ function MainApp() {
           onBack={handleBack}
           theme={theme}
           toggleTheme={toggleTheme}
+          onNavigateToSubscription={handleNavigateToSubscription}
         />
+      )}
+      {screen === 'subscription' && (
+        <SubscriptionScreen navigation={{ navigate: (s) => setScreen(s), goBack: handleBack }} />
       )}
     </GestureHandlerRootView>
   );
