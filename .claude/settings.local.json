@@ -9,7 +9,8 @@
       "Bash(dir \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\")",
       "Bash(dir \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\\\\screens\")",
       "Bash(dir \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\\\\components\")",
-      "Bash(dir \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\\\\hooks\")"
+      "Bash(dir \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\\\\hooks\")",
+      "Bash(node:*)"
     ]
   }
 }
