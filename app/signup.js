@@ -11,6 +11,8 @@ export default function SignUpRoute() {
     navigate: (screen) => {
       if (screen === 'Login') {
         router.push('/login');
+      } else if (screen === 'Subscription') {
+        router.push('/subscription');
       }
     },
   };

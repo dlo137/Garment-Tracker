@@ -1,101 +1,72 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { updateProfile } from '../lib/profileService';
+import { initializeProfile } from '../lib/profileService';
 
-export default function SignUpScreen({ navigation, theme }) {
-  const [name, setName] = useState('');
+export default function SignInScreen({ navigation, theme }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const isDark = theme === 'dark';
 
-  const handleSignUp = async () => {
-    if (!name || !email || !password) {
+  const handleLogin = async () => {
+    if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Get current anonymous user
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (currentUser?.is_anonymous) {
-        // Convert anonymous user to permanent account
-        // This preserves all existing data (folders, items, profile)
-        const { data, error } = await supabase.auth.updateUser({
-          email,
-          password,
-          data: { name },
-        });
+      if (error) {
+        Alert.alert('Sign In Error', error.message || 'Invalid email or password.');
+        return;
+      }
 
-        if (error) {
-          if (error.message.includes('already registered') || error.message.includes('already been registered')) {
-            Alert.alert('Account Exists', 'This email is already registered. Please sign in instead.');
-          } else {
-            Alert.alert('Sign Up Error', error.message);
-          }
-          return;
-        }
-
-        // Update the profile with the name
-        if (data?.user) {
-          await updateProfile(data.user.id, { name, email });
-          Alert.alert(
-            'Account Created!',
-            'Your account has been created. Please check your email to verify your address. All your existing data has been preserved.',
-            [{ text: 'OK', onPress: () => navigation.goBack() }]
-          );
-        }
-      } else {
-        // Fresh signup (no anonymous session)
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { name },
-          },
-        });
-
-        if (error) {
-          if (error.message.includes('already registered') || error.message.includes('already been registered')) {
-            Alert.alert('Account Exists', 'This email is already registered. Please sign in instead.');
-          } else {
-            Alert.alert('Sign Up Error', error.message);
-          }
-          return;
-        }
-
-        if (data?.user) {
-          await updateProfile(data.user.id, { name, email });
-          Alert.alert(
-            'Account Created!',
-            'Please check your email to verify your address.',
-            [{ text: 'OK', onPress: () => navigation.goBack() }]
-          );
-        }
+      if (data?.user) {
+        // Re-initialize profile for the signed-in user
+        await initializeProfile(data.user.id);
+        Alert.alert('Welcome Back!', 'You have been signed in successfully.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
       }
     } catch (error) {
-      console.error('Sign up error:', error);
-      Alert.alert('Sign Up Error', error.message || 'Something went wrong. Please try again.');
+      console.error('Login error:', error);
+      Alert.alert('Sign In Error', error.message || 'Invalid email or password.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Email Required', 'Please enter your email address first, then tap Forgot Password.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) {
+        Alert.alert('Error', error.message);
+        return;
+      }
+      Alert.alert('Check Your Email', 'A password reset link has been sent to your email address.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send reset email. Please try again.');
     }
   };
 
@@ -115,25 +86,13 @@ export default function SignUpScreen({ navigation, theme }) {
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[styles.title, !isDark && styles.titleLight]}>Create Account</Text>
+          <Text style={[styles.title, !isDark && styles.titleLight]}>Welcome Back</Text>
           <Text style={[styles.subtitle, !isDark && styles.subtitleLight]}>
-            Sign up to sync your inventory across devices and unlock your full account
+            Sign in to sync your inventory and access your account
           </Text>
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, !isDark && styles.labelLight]}>Name</Text>
-            <TextInput
-              style={[styles.input, !isDark && styles.inputLight]}
-              placeholder="Enter your name"
-              placeholderTextColor={isDark ? '#8a9099' : '#999'}
-              value={name}
-              onChangeText={setName}
-              autoComplete="name"
-            />
-          </View>
-
           <View style={styles.inputContainer}>
             <Text style={[styles.label, !isDark && styles.labelLight]}>Email</Text>
             <TextInput
@@ -153,7 +112,7 @@ export default function SignUpScreen({ navigation, theme }) {
             <View style={[styles.passwordContainer, !isDark && styles.passwordContainerLight]}>
               <TextInput
                 style={[styles.passwordInput, !isDark && styles.passwordInputLight]}
-                placeholder="Enter your password (min 6 chars)"
+                placeholder="Enter your password"
                 placeholderTextColor={isDark ? '#8a9099' : '#999'}
                 value={password}
                 onChangeText={setPassword}
@@ -170,42 +129,29 @@ export default function SignUpScreen({ navigation, theme }) {
           </View>
 
           <TouchableOpacity
-            style={[styles.signUpButton, isLoading && styles.signUpButtonDisabled]}
-            onPress={handleSignUp}
+            style={[styles.signInButton, isLoading && styles.signInButtonDisabled]}
+            onPress={handleLogin}
             disabled={isLoading}
           >
-            <Text style={styles.signUpButtonText}>
-              {isLoading ? 'Creating Account...' : 'Sign Up'}
+            <Text style={styles.signInButtonText}>
+              {isLoading ? 'Signing In...' : 'Sign In'}
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.loginContainer}>
-            <Text style={[styles.loginText, !isDark && styles.loginTextLight]}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => {
-              navigation.goBack();
-              setTimeout(() => navigation.navigate('Login'), 100);
-            }}>
-              <Text style={styles.loginLink}>Sign In</Text>
+          <View style={styles.forgotPasswordContainer}>
+            <TouchableOpacity onPress={handleForgotPassword}>
+              <Text style={styles.forgotPasswordLink}>Forgot Password?</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.termsContainer}>
-            <Text style={[styles.termsText, !isDark && styles.termsTextLight]}>
-              By creating an account, you agree to our{' '}
-              <Text
-                style={styles.termsLink}
-                onPress={() => Linking.openURL('https://dlo137.github.io/Privacy-Policy-Thumbnail-Generator/')}
-              >
-                privacy policy
-              </Text>
-              {' '}and{' '}
-              <Text
-                style={styles.termsLink}
-                onPress={() => Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/')}
-              >
-                terms of use
-              </Text>
-            </Text>
+          <View style={styles.signUpContainer}>
+            <Text style={[styles.signUpText, !isDark && styles.signUpTextLight]}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => {
+              navigation.goBack();
+              setTimeout(() => navigation.navigate('SignUp'), 100);
+            }}>
+              <Text style={styles.signUpLink}>Sign Up</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -229,7 +175,6 @@ const styles = StyleSheet.create({
     minHeight: '100%',
   },
   header: {
-    marginTop: 60,
     marginBottom: 40,
     alignItems: 'center',
   },
@@ -314,7 +259,7 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
   },
-  signUpButton: {
+  signInButton: {
     backgroundColor: '#1e40af',
     paddingVertical: 16,
     borderRadius: 12,
@@ -326,28 +271,37 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  signUpButtonDisabled: {
+  signInButtonDisabled: {
     opacity: 0.6,
   },
-  signUpButtonText: {
+  signInButtonText: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },
-  loginContainer: {
+  forgotPasswordContainer: {
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  forgotPasswordLink: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  signUpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 24,
   },
-  loginText: {
+  signUpText: {
     fontSize: 16,
     color: '#8a9099',
   },
-  loginTextLight: {
+  signUpTextLight: {
     color: '#666',
   },
-  loginLink: {
+  signUpLink: {
     fontSize: 16,
     color: '#007AFF',
     fontWeight: '600',
@@ -366,22 +320,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   backButtonTextLight: {
-    color: '#007AFF',
-  },
-  termsContainer: {
-    marginTop: 16,
-  },
-  termsText: {
-    fontSize: 12,
-    color: '#8a9099',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  termsTextLight: {
-    color: '#999',
-  },
-  termsLink: {
-    textDecorationLine: 'underline',
     color: '#007AFF',
   },
 });

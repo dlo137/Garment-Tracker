@@ -83,6 +83,10 @@ export default function RootLayout() {
             name="signup"
             options={{ presentation: 'fullScreenModal' }}
           />
+          <Stack.Screen
+            name="login"
+            options={{ presentation: 'fullScreenModal' }}
+          />
         </Stack>
       </GestureHandlerRootView>
     </ThemeProvider>

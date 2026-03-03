@@ -11,7 +11,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as XLSX from 'xlsx';
 import * as FileSystem from 'expo-file-system/legacy';
 
-export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription, onNavigateToProfile, onNavigateToSignUp }) => {
+export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription, onNavigateToProfile, onNavigateToSignUp, onNavigateToSignIn }) => {
   const { folders, items, isLoading, addFolder, deleteFolder, importFromExcel, profile } = useInventoryStorage();
   const isPro = profile?.is_pro_version === true;
   const atFolderLimit = !isPro && folders.length >= 1;
@@ -208,7 +208,7 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
             {[
               { label: 'Profile', onPress: () => { setAccountMenuVisible(false); onNavigateToProfile && onNavigateToProfile(); } },
               { label: 'Sign Up', onPress: () => { setAccountMenuVisible(false); onNavigateToSignUp && onNavigateToSignUp(); } },
-              { label: 'Sign In', onPress: () => setAccountMenuVisible(false) },
+              { label: 'Sign In', onPress: () => { setAccountMenuVisible(false); onNavigateToSignIn && onNavigateToSignIn(); } },
             ].map((item, index, arr) => (
               <TouchableOpacity
                 key={item.label}

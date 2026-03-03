@@ -14,6 +14,7 @@ import {
   Linking,
   Image,
   Keyboard,
+  Switch,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -27,7 +28,7 @@ const PLAN_PRODUCT_IDS = {
   monthly: PRODUCT_IDS.MONTHLY,
 };
 
-export default function ProfileScreen({ navigation, theme }) {
+export default function ProfileScreen({ navigation, theme, toggleTheme }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -485,6 +486,22 @@ export default function ProfileScreen({ navigation, theme }) {
         {/* Settings */}
         <View style={styles.settingsSection}>
           <Text style={[styles.sectionTitle, isDark && { color: '#e7ebf0' }]}>Settings</Text>
+
+          {/* Dark Mode Toggle */}
+          <View style={[styles.settingItem, isDark && { backgroundColor: '#151a21', borderColor: '#232932' }]}>
+            <View style={styles.settingContent}>
+              <Text style={[styles.settingTitle, isDark && { color: '#e7ebf0' }]}>Dark Mode</Text>
+              <Text style={[styles.settingSubtitle, isDark && { color: '#8a9099' }]}>Toggle dark appearance</Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: '#ddd', true: '#1e40af' }}
+              thumbColor={isDark ? '#e7ebf0' : '#fff'}
+              ios_backgroundColor="#ddd"
+            />
+          </View>
+
           {settings.map((setting) => (
             <TouchableOpacity
               key={setting.id}

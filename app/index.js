@@ -14,6 +14,7 @@ export default function Index() {
       onNavigateToSubscription={() => router.push('/subscription')}
       onNavigateToProfile={() => router.push('/profile')}
       onNavigateToSignUp={() => router.push('/signup')}
+      onNavigateToSignIn={() => router.push('/login')}
     />
   );
 }

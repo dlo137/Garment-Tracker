@@ -4,7 +4,7 @@ import { useTheme } from '../hooks/useTheme';
 
 export default function ProfileRoute() {
   const router = useRouter();
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   const navigation = {
     goBack: () => router.back(),
@@ -15,5 +15,5 @@ export default function ProfileRoute() {
     },
   };
 
-  return <ProfileScreen navigation={navigation} theme={theme} />;
+  return <ProfileScreen navigation={navigation} theme={theme} toggleTheme={toggleTheme} />;
 }
