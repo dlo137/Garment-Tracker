@@ -75,6 +75,10 @@ export default function RootLayout() {
             name="subscription"
             options={{ presentation: 'fullScreenModal' }}
           />
+          <Stack.Screen
+            name="profile"
+            options={{ presentation: 'card' }}
+          />
         </Stack>
       </GestureHandlerRootView>
     </ThemeProvider>

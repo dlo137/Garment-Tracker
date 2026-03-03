@@ -11,7 +11,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as XLSX from 'xlsx';
 import * as FileSystem from 'expo-file-system/legacy';
 
-export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription }) => {
+export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription, onNavigateToProfile }) => {
   const { folders, items, isLoading, addFolder, deleteFolder, importFromExcel, profile } = useInventoryStorage();
   const isPro = profile?.is_pro_version === true;
   const atFolderLimit = !isPro && folders.length >= 1;
@@ -206,9 +206,9 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
         >
           <View style={[styles.menuCard, theme === 'dark' && { backgroundColor: '#23272F', borderColor: '#333' }]}>
             {[
-              { label: 'Profile' },
-              { label: 'Sign Up' },
-              { label: 'Sign In' },
+              { label: 'Profile', onPress: () => { setAccountMenuVisible(false); onNavigateToProfile && onNavigateToProfile(); } },
+              { label: 'Sign Up', onPress: () => setAccountMenuVisible(false) },
+              { label: 'Sign In', onPress: () => setAccountMenuVisible(false) },
             ].map((item, index, arr) => (
               <TouchableOpacity
                 key={item.label}
@@ -216,7 +216,7 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
                   styles.menuItem,
                   index < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme === 'dark' ? '#333' : '#f0f0f0' },
                 ]}
-                onPress={() => setAccountMenuVisible(false)}
+                onPress={item.onPress}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.menuItemLabel, theme === 'dark' && { color: '#e0e0e0' }]}>
