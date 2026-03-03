@@ -266,12 +266,22 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
 
                   const now = new Date().toISOString();
 
-                  // Generate incrementing subscription_id
-                  const { count: planCount } = await supabase
+                  // Generate unique incrementing subscription_id (global max + 1)
+                  const { data: allSubs } = await supabase
                     .from('profiles')
-                    .select('*', { count: 'exact', head: true })
-                    .like('subscription_id', `${planId}_plan_%`);
-                  const nextPlanNum = (planCount || 0) + 1;
+                    .select('subscription_id')
+                    .like('subscription_id', '%_plan_%');
+                  let maxNum = 0;
+                  if (allSubs) {
+                    allSubs.forEach(row => {
+                      const match = row.subscription_id?.match(/_plan_(\d+)$/);
+                      if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10));
+                    });
+                  }
+                  const nextPlanNum = maxNum + 1;
+
+                  const periodEnd = new Date();
+                  periodEnd.setDate(periodEnd.getDate() + (planId === 'yearly' ? 365 : 30));
 
                   const { error: updateError } = await supabase
                     .from('profiles')
@@ -283,6 +293,12 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
                       price: plan.billingPrice,
                       product_id: PLAN_PRODUCT_IDS[planId] || planId,
                       updated_at: now,
+                      status: 'active',
+                      current_period_start: now,
+                      current_period_end: periodEnd.toISOString(),
+                      cancel_at_period_end: false,
+                      canceled_at: null,
+                      provider: Platform.OS === 'ios' ? 'apple' : 'google',
                     })
                     .eq('user_id', authUser.id);
 
@@ -334,6 +350,9 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
         const purchasePrice = product?.localizedPrice ?? product?.price ?? '';
         const planType = productId.includes('yearly') ? 'yearly' : 'monthly';
 
+        const periodEnd = new Date();
+        periodEnd.setDate(periodEnd.getDate() + (planType === 'yearly' ? 365 : 30));
+
         await supabase
           .from('profiles')
           .update({
@@ -344,6 +363,12 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
             subscription_id: txId,
             product_id: productId,
             updated_at: now,
+            status: 'active',
+            current_period_start: now,
+            current_period_end: periodEnd.toISOString(),
+            cancel_at_period_end: false,
+            canceled_at: null,
+            provider: Platform.OS === 'ios' ? 'apple' : 'google',
           })
           .eq('user_id', authUser.id);
       }

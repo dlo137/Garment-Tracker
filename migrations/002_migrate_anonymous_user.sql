@@ -68,6 +68,30 @@ BEGIN
           WHEN NOT is_pro_version AND anon_profile.is_pro_version THEN anon_profile.purchase_time
           ELSE purchase_time
         END,
+        status = CASE
+          WHEN NOT is_pro_version AND anon_profile.is_pro_version THEN anon_profile.status
+          ELSE status
+        END,
+        current_period_start = CASE
+          WHEN NOT is_pro_version AND anon_profile.is_pro_version THEN anon_profile.current_period_start
+          ELSE current_period_start
+        END,
+        current_period_end = CASE
+          WHEN NOT is_pro_version AND anon_profile.is_pro_version THEN anon_profile.current_period_end
+          ELSE current_period_end
+        END,
+        cancel_at_period_end = CASE
+          WHEN NOT is_pro_version AND anon_profile.is_pro_version THEN anon_profile.cancel_at_period_end
+          ELSE cancel_at_period_end
+        END,
+        canceled_at = CASE
+          WHEN NOT is_pro_version AND anon_profile.is_pro_version THEN anon_profile.canceled_at
+          ELSE canceled_at
+        END,
+        provider = CASE
+          WHEN NOT is_pro_version AND anon_profile.is_pro_version THEN anon_profile.provider
+          ELSE provider
+        END,
         updated_at = NOW()
       WHERE user_id = perm_user_id;
 

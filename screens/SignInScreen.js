@@ -63,30 +63,6 @@ export default function SignInScreen({ navigation, theme }) {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      Alert.alert('Email Required', 'Please enter your email address first, then tap Forgot Password.');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
-      return;
-    }
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
-      if (error) {
-        Alert.alert('Error', error.message);
-        return;
-      }
-      Alert.alert('Check Your Email', 'A password reset link has been sent to your email address.');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to send reset email. Please try again.');
-    }
-  };
-
   return (
     <KeyboardAvoidingView
       style={[styles.container, !isDark && styles.containerLight]}
@@ -154,12 +130,6 @@ export default function SignInScreen({ navigation, theme }) {
               {isLoading ? 'Signing In...' : 'Sign In'}
             </Text>
           </TouchableOpacity>
-
-          <View style={styles.forgotPasswordContainer}>
-            <TouchableOpacity onPress={handleForgotPassword}>
-              <Text style={styles.forgotPasswordLink}>Forgot Password?</Text>
-            </TouchableOpacity>
-          </View>
 
           <View style={styles.signUpContainer}>
             <Text style={[styles.signUpText, !isDark && styles.signUpTextLight]}>Don't have an account? </Text>
@@ -294,15 +264,6 @@ const styles = StyleSheet.create({
   signInButtonText: {
     color: '#ffffff',
     fontSize: 18,
-    fontWeight: '600',
-  },
-  forgotPasswordContainer: {
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  forgotPasswordLink: {
-    fontSize: 16,
-    color: '#007AFF',
     fontWeight: '600',
   },
   signUpContainer: {

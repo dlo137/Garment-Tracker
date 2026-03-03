@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, Modal, TextInput } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useFocusEffect } from '@react-navigation/native';
 import { useInventoryStorage } from '../hooks/useInventoryStorage';
 import { FolderList } from '../components/FolderList';
 import { FolderForm } from '../components/FolderForm';
@@ -15,13 +16,29 @@ import IAPService from '../lib/IApservice';
 import { updateProfile } from '../lib/profileService';
 
 export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription, onNavigateToProfile, onNavigateToSignUp, onNavigateToSignIn }) => {
-  const { folders, items, isLoading, addFolder, renameFolder, deleteFolder, importFromExcel, profile, refreshAll } = useInventoryStorage();
+  const { folders, items, isLoading, addFolder, renameFolder, deleteFolder, importFromExcel, profile, refreshAll, refreshProfile } = useInventoryStorage();
   const isPro = profile?.is_pro_version === true;
   const atFolderLimit = !isPro && folders.length >= 1;
   const [modalVisible, setModalVisible] = useState(false);
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
   const [lockedFolder, setLockedFolder] = useState(null);
   const [authUser, setAuthUser] = useState(null);
+
+  // Refresh profile when screen regains focus (e.g., returning from SubscriptionScreen)
+  useFocusEffect(
+    useCallback(() => {
+      refreshProfile();
+    }, [refreshProfile])
+  );
+
+  // When the user upgrades to pro, unlock the locked folder and save it
+  useEffect(() => {
+    if (isPro && lockedFolder) {
+      const folderName = lockedFolder.name;
+      setLockedFolder(null);
+      addFolder(folderName);
+    }
+  }, [isPro]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -52,6 +69,7 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
       }
       // Refresh all data to reflect the new empty guest account
       await refreshAll();
+      Alert.alert('Signed Out', 'You have been successfully signed out.');
     } catch (error) {
       console.error('Sign out error:', error);
       Alert.alert('Error', 'Failed to sign out. Please try again.');
@@ -74,6 +92,9 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const now = new Date().toISOString();
+          const periodEnd = new Date();
+          periodEnd.setDate(periodEnd.getDate() + (restoredPlan === 'yearly' ? 365 : 30));
+
           await supabase.from('profiles').update({
             plan: restoredPlan,
             is_pro_version: true,
@@ -81,6 +102,12 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
             subscription_id: restoredTxId,
             product_id: restoredProduct?.productId ?? '',
             updated_at: now,
+            status: 'active',
+            current_period_start: now,
+            current_period_end: periodEnd.toISOString(),
+            cancel_at_period_end: false,
+            canceled_at: null,
+            provider: Platform.OS === 'ios' ? 'apple' : 'google',
           }).eq('user_id', user.id);
         }
         Alert.alert('Success', 'Your purchases have been restored!');
