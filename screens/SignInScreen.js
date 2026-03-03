@@ -21,6 +21,10 @@ export default function SignInScreen({ navigation, theme }) {
     setIsLoading(true);
 
     try {
+      // Capture the current anonymous session before it is replaced
+      const { data: { user: preLoginUser } } = await supabase.auth.getUser();
+      const anonymousUserId = preLoginUser?.is_anonymous ? preLoginUser.id : null;
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -32,7 +36,20 @@ export default function SignInScreen({ navigation, theme }) {
       }
 
       if (data?.user) {
-        // Re-initialize profile for the signed-in user
+        // If the user was anonymous before, migrate their data to this permanent account
+        if (anonymousUserId && anonymousUserId !== data.user.id) {
+          console.log('🔄 Migrating anonymous data to permanent account...');
+          const { error: migrateError } = await supabase.rpc('migrate_anonymous_user', {
+            anon_user_id: anonymousUserId,
+            perm_user_id: data.user.id,
+          });
+          if (migrateError) {
+            console.error('⚠️ Anonymous data migration failed (non-blocking):', migrateError.message);
+          } else {
+            console.log('✅ Anonymous data migrated successfully');
+          }
+        }
+
         await initializeProfile(data.user.id);
         Alert.alert('Welcome Back!', 'You have been signed in successfully.', [
           { text: 'OK', onPress: () => navigation.goBack() },

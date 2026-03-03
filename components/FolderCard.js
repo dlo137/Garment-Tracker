@@ -1,29 +1,40 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Platform } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { ClothingTypeIcon } from './ClothingTypeIcon';
 
-export const FolderCard = ({ folder, itemCount, onDelete, onPress, theme, selected, onUpgrade }) => {
+export const FolderCard = ({ folder, itemCount, onDelete, onRename, onPress, theme, selected, onUpgrade }) => {
+  const swipeableRef = useRef(null);
   const isLocked = folder.locked === true;
 
-  const renderRightActions = (progress, dragX) => {
-    const trans = dragX.interpolate({
-      inputRange: [-100, 0],
-      outputRange: [0, 100],
-      extrapolate: 'clamp',
-    });
-
+  const renderRightActions = () => {
     return (
-      <Animated.View
-        style={[
-          styles.deleteContainer,
-          {
-            transform: [{ translateX: trans }],
-          },
-        ]}
-      >
+      <View style={styles.rightActionsRow}>
         <TouchableOpacity
-          style={styles.deleteButton}
+          style={styles.renameContainer}
+          onPress={() => {
+            swipeableRef.current?.close();
+            if (Platform.OS === 'ios') {
+              Alert.prompt(
+                'Rename Folder',
+                'Enter a new name for this folder',
+                (newName) => {
+                  if (newName && newName.trim()) {
+                    onRename(folder.id, newName.trim());
+                  }
+                },
+                'plain-text',
+                folder.name
+              );
+            } else {
+              onRename(folder.id);
+            }
+          }}
+        >
+          <Text style={styles.renameIcon}>+</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteContainer}
           onPress={() => onDelete(folder.id)}
         >
           <Image
@@ -32,7 +43,7 @@ export const FolderCard = ({ folder, itemCount, onDelete, onPress, theme, select
             resizeMode="contain"
           />
         </TouchableOpacity>
-      </Animated.View>
+      </View>
     );
   };
 
@@ -76,7 +87,7 @@ export const FolderCard = ({ folder, itemCount, onDelete, onPress, theme, select
   }
 
   return (
-    <Swipeable renderRightActions={renderRightActions}>
+    <Swipeable ref={swipeableRef} renderRightActions={renderRightActions}>
       {cardContent}
     </Swipeable>
   );
@@ -143,19 +154,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 2,
   },
+  rightActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 8,
+    marginRight: 16,
+  },
+  renameContainer: {
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 70,
+    height: '100%',
+    borderRadius: 20,
+  },
+  renameIcon: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+  },
   deleteContainer: {
     backgroundColor: '#ff3b30',
     justifyContent: 'center',
-    alignItems: 'flex-end',
-    marginVertical: 8,
-    marginRight: 16,
-    borderRadius: 20,
-  },
-  deleteButton: {
-    justifyContent: 'center',
     alignItems: 'center',
-    width: 80,
+    width: 70,
     height: '100%',
+    borderRadius: 20,
   },
   deleteIcon: {
     width: 24,

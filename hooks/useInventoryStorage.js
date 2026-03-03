@@ -132,6 +132,31 @@ export const useInventoryStorage = () => {
     }
   }, []);
 
+  const renameFolder = useCallback(async (folderId, newName) => {
+    try {
+      const { error } = await supabase
+        .from('folders')
+        .update({ name: newName })
+        .eq('id', folderId);
+
+      if (error) {
+        console.error('Error renaming folder:', error.message);
+        if (error.code === '23505' || error.message.includes('unique constraint')) {
+          return { success: false, error: 'duplicate', message: 'A folder with this name already exists' };
+        }
+        return { success: false, error: error.message };
+      }
+
+      setFolders((prevFolders) =>
+        prevFolders.map((f) => (f.id === folderId ? { ...f, name: newName } : f))
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('Error renaming folder:', error);
+      return { success: false, error: error.message };
+    }
+  }, []);
+
   const deleteFolder = useCallback(async (folderId) => {
     try {
       const { error } = await supabase
@@ -389,12 +414,31 @@ export const useInventoryStorage = () => {
     loadData();
   }, [loadFolders, loadItems, loadProfile]);
 
+  // Reload all data when auth state changes (sign-in, sign-out, etc.)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        // Clear stale data immediately
+        setFolders([]);
+        setItems([]);
+        setProfile(null);
+        // Small delay to ensure new session is fully established
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await loadFolders();
+        await loadItems();
+        await loadProfile();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [loadFolders, loadItems, loadProfile]);
+
   return {
     folders,
     items,
     profile,
     isLoading,
     addFolder,
+    renameFolder,
     deleteFolder,
     addItem,
     deleteItem,
@@ -404,5 +448,14 @@ export const useInventoryStorage = () => {
     updateItemImage,
     importFromExcel,
     refreshProfile: loadProfile,
+    refreshAll: async () => {
+      setFolders([]);
+      setItems([]);
+      setProfile(null);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await loadFolders();
+      await loadItems();
+      await loadProfile();
+    },
   };
 };

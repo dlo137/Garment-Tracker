@@ -24,6 +24,28 @@ export default function SubscriptionScreen({ navigation, theme }) {
   // Android: offerTokens keyed by base plan ID (monthly / yearly)
   const [androidOfferTokens, setAndroidOfferTokens] = useState({});
   const isRestoringRef = useRef(false);
+  const [currentPlan, setCurrentPlan] = useState(null);
+
+  // Fetch the user's current plan
+  useEffect(() => {
+    const fetchCurrentPlan = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase
+          .from('profiles')
+          .select('plan, is_pro_version')
+          .eq('user_id', user.id)
+          .single();
+        if (data?.is_pro_version && data?.plan) {
+          setCurrentPlan(data.plan);
+        }
+      } catch (e) {
+        console.log('[SUB] Could not fetch current plan:', e.message);
+      }
+    };
+    fetchCurrentPlan();
+  }, []);
 
   // Fade in on mount
   useEffect(() => {
@@ -109,12 +131,20 @@ export default function SubscriptionScreen({ navigation, theme }) {
       }
 
       const now = new Date().toISOString();
+
+      // Generate incrementing subscription_id like yearly_plan_1, monthly_plan_2
+      const { count: planCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .like('subscription_id', `${plan}_plan_%`);
+      const nextPlanNum = (planCount || 0) + 1;
+
       const payload = {
         plan: plan,
         is_pro_version: true,
         purchase_time: now,
         price: plan === 'yearly' ? '$24.99' : '$2.99',
-        subscription_id: `sim_${Date.now()}`,
+        subscription_id: `${plan}_plan_${nextPlanNum}`,
         product_id: PLAN_PRODUCT_IDS[plan] || plan,
         updated_at: now,
       };
@@ -365,14 +395,18 @@ export default function SubscriptionScreen({ navigation, theme }) {
               !isDark && styles.planCardLight,
               selectedPlan === 'monthly' && styles.selectedPlan,
               selectedPlan === 'monthly' && !isDark && styles.selectedPlanLight,
+              currentPlan === 'monthly' && { opacity: 0.4 },
             ]}
-            onPress={() => setSelectedPlan('monthly')}
+            onPress={() => currentPlan !== 'monthly' && setSelectedPlan('monthly')}
+            disabled={currentPlan === 'monthly'}
           >
             <View style={[styles.planRadio, !isDark && { borderColor: '#999' }]}>
               {selectedPlan === 'monthly' && <View style={styles.planRadioSelected} />}
             </View>
             <View style={styles.planContent}>
-              <Text style={[styles.planName, !isDark && { color: '#1a1a2e' }]}>Monthly</Text>
+              <Text style={[styles.planName, !isDark && { color: '#1a1a2e' }]}>
+                Monthly{currentPlan === 'monthly' ? ' (Current)' : ''}
+              </Text>
             </View>
             <View style={styles.planPricing}>
               <Text style={[styles.planPrice, !isDark && { color: '#666' }]}>{formatPrice('monthly', '$2.99/month')}</Text>
@@ -387,8 +421,10 @@ export default function SubscriptionScreen({ navigation, theme }) {
               selectedPlan === 'yearly' && styles.selectedPlan,
               selectedPlan === 'yearly' && !isDark && styles.selectedPlanLight,
               styles.popularPlan,
+              currentPlan === 'yearly' && { opacity: 0.4 },
             ]}
-            onPress={() => setSelectedPlan('yearly')}
+            onPress={() => currentPlan !== 'yearly' && setSelectedPlan('yearly')}
+            disabled={currentPlan === 'yearly'}
           >
             <View style={styles.tryFreeBadge}>
               <Text style={styles.tryFreeBadgeText}>BEST VALUE</Text>
@@ -397,7 +433,9 @@ export default function SubscriptionScreen({ navigation, theme }) {
               {selectedPlan === 'yearly' && <View style={styles.planRadioSelected} />}
             </View>
             <View style={styles.planContent}>
-              <Text style={[styles.planName, !isDark && { color: '#1a1a2e' }]}>Yearly</Text>
+              <Text style={[styles.planName, !isDark && { color: '#1a1a2e' }]}>
+                Yearly{currentPlan === 'yearly' ? ' (Current)' : ''}
+              </Text>
             </View>
             <View style={styles.planPricing}>
               <Text style={[styles.planPrice, !isDark && { color: '#666' }]}>{formatPrice('yearly', '$24.99/year')}</Text>

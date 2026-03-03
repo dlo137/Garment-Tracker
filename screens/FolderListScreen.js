@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, Modal, TextInput } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useInventoryStorage } from '../hooks/useInventoryStorage';
 import { FolderList } from '../components/FolderList';
@@ -10,14 +10,120 @@ import profileIconDark from '../assets/profile-icon-dark.png';
 import * as DocumentPicker from 'expo-document-picker';
 import * as XLSX from 'xlsx';
 import * as FileSystem from 'expo-file-system/legacy';
+import { supabase } from '../lib/supabaseClient';
+import IAPService from '../lib/IApservice';
+import { updateProfile } from '../lib/profileService';
 
 export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription, onNavigateToProfile, onNavigateToSignUp, onNavigateToSignIn }) => {
-  const { folders, items, isLoading, addFolder, deleteFolder, importFromExcel, profile } = useInventoryStorage();
+  const { folders, items, isLoading, addFolder, renameFolder, deleteFolder, importFromExcel, profile, refreshAll } = useInventoryStorage();
   const isPro = profile?.is_pro_version === true;
   const atFolderLimit = !isPro && folders.length >= 1;
   const [modalVisible, setModalVisible] = useState(false);
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
   const [lockedFolder, setLockedFolder] = useState(null);
+  const [authUser, setAuthUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setAuthUser(user);
+    };
+    fetchUser();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const isAnonymous = !authUser?.email;
+  const userEmail = authUser?.email;
+
+  const handleSignOut = async () => {
+    setAccountMenuVisible(false);
+    try {
+      await supabase.auth.signOut();
+      // Sign back in anonymously so app still works
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) throw error;
+      // Initialize profile for the new anonymous user
+      if (data?.user) {
+        const { initializeProfile } = require('../lib/profileService');
+        await initializeProfile(data.user.id);
+      }
+      // Refresh all data to reflect the new empty guest account
+      await refreshAll();
+    } catch (error) {
+      console.error('Sign out error:', error);
+      Alert.alert('Error', 'Failed to sign out. Please try again.');
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    setAccountMenuVisible(false);
+    if (!IAPService.isAvailable()) {
+      Alert.alert('Restore Failed', 'In-app purchases are not available on this device.');
+      return;
+    }
+    try {
+      const results = await IAPService.restorePurchases();
+      if (results.length > 0) {
+        const restoredProduct = results[0];
+        const restoredProductId = (restoredProduct?.productId ?? '').toLowerCase();
+        const restoredPlan = restoredProductId.includes('yearly') ? 'yearly' : 'monthly';
+        const restoredTxId = restoredProduct?.id ?? restoredProduct?.transactionId ?? '';
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const now = new Date().toISOString();
+          await supabase.from('profiles').update({
+            plan: restoredPlan,
+            is_pro_version: true,
+            purchase_time: now,
+            subscription_id: restoredTxId,
+            product_id: restoredProduct?.productId ?? '',
+            updated_at: now,
+          }).eq('user_id', user.id);
+        }
+        Alert.alert('Success', 'Your purchases have been restored!');
+      } else {
+        Alert.alert('No Purchases', 'No previous purchases were found.');
+      }
+    } catch (error) {
+      console.error('Restore error:', error);
+      Alert.alert('Restore Failed', 'Could not connect to store.');
+    }
+  };
+
+  const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [renameFolderId, setRenameFolderId] = useState(null);
+  const [renameText, setRenameText] = useState('');
+
+  const handleRenameFolder = async (folderId, newName) => {
+    // iOS passes newName directly from Alert.prompt; Android uses modal
+    if (newName) {
+      const result = await renameFolder(folderId, newName);
+      if (result?.error === 'duplicate') {
+        Alert.alert('Folder Exists', 'A folder with this name already exists. Please choose a different name.');
+      }
+    } else {
+      const folder = folders.find(f => f.id === folderId);
+      setRenameFolderId(folderId);
+      setRenameText(folder?.name || '');
+      setRenameModalVisible(true);
+    }
+  };
+
+  const confirmRename = async () => {
+    if (renameText.trim()) {
+      const result = await renameFolder(renameFolderId, renameText.trim());
+      if (result?.error === 'duplicate') {
+        Alert.alert('Folder Exists', 'A folder with this name already exists. Please choose a different name.');
+        return;
+      }
+    }
+    setRenameModalVisible(false);
+    setRenameFolderId(null);
+    setRenameText('');
+  };
 
   const handleAddFolder = async (name) => {
     if (atFolderLimit) {
@@ -163,6 +269,7 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
         folders={displayFolders}
         items={items}
         onDeleteFolder={deleteFolder}
+        onRenameFolder={handleRenameFolder}
         onFolderPress={onFolderPress}
         theme={theme}
         onUpgrade={onNavigateToSubscription}
@@ -205,11 +312,16 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
           onPress={() => setAccountMenuVisible(false)}
         >
           <View style={[styles.menuCard, theme === 'dark' && { backgroundColor: '#23272F', borderColor: '#333' }]}>
-            {[
-              { label: 'Profile', onPress: () => { setAccountMenuVisible(false); onNavigateToProfile && onNavigateToProfile(); } },
-              { label: 'Sign Up', onPress: () => { setAccountMenuVisible(false); onNavigateToSignUp && onNavigateToSignUp(); } },
+            {(isAnonymous ? [
+              { label: 'Guest Profile', onPress: () => { setAccountMenuVisible(false); onNavigateToProfile && onNavigateToProfile(); } },
+              { label: 'Upgrade', onPress: () => { setAccountMenuVisible(false); onNavigateToSubscription && onNavigateToSubscription(); } },
+              { label: 'Create Account', onPress: () => { setAccountMenuVisible(false); onNavigateToSignUp && onNavigateToSignUp(); } },
               { label: 'Sign In', onPress: () => { setAccountMenuVisible(false); onNavigateToSignIn && onNavigateToSignIn(); } },
-            ].map((item, index, arr) => (
+            ] : [
+              { label: `Profile (${profile?.name || 'User'})`, onPress: () => { setAccountMenuVisible(false); onNavigateToProfile && onNavigateToProfile(); } },
+              { label: 'Manage Subscription', onPress: () => { setAccountMenuVisible(false); onNavigateToSubscription && onNavigateToSubscription(); } },
+              { label: 'Sign Out', onPress: handleSignOut, isDestructive: true },
+            ]).map((item, index, arr) => (
               <TouchableOpacity
                 key={item.label}
                 style={[
@@ -219,11 +331,57 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
                 onPress={item.onPress}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.menuItemLabel, theme === 'dark' && { color: '#e0e0e0' }]}>
+                <Text style={[
+                  styles.menuItemLabel,
+                  theme === 'dark' && { color: '#e0e0e0' },
+                  item.isEmail && { fontSize: 14, color: theme === 'dark' ? '#aaa' : '#666' },
+                  item.isDestructive && { color: '#ff3b30' },
+                ]} numberOfLines={1}>
                   {item.label}
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Rename Folder Modal (Android) */}
+      <Modal
+        visible={renameModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRenameModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.renameOverlay}
+          activeOpacity={1}
+          onPress={() => setRenameModalVisible(false)}
+        >
+          <View style={[styles.renameModal, theme === 'dark' && { backgroundColor: '#2c2c2e' }]}>
+            <Text style={[styles.renameTitle, theme === 'dark' && { color: '#fff' }]}>Rename Folder</Text>
+            <TextInput
+              style={[styles.renameInput, theme === 'dark' && { backgroundColor: '#3a3a3c', color: '#fff', borderColor: '#555' }]}
+              value={renameText}
+              onChangeText={setRenameText}
+              placeholder="Folder name"
+              placeholderTextColor={theme === 'dark' ? '#888' : '#999'}
+              autoFocus
+            />
+            <View style={styles.renameButtons}>
+              <TouchableOpacity
+                style={styles.renameCancelBtn}
+                onPress={() => { setRenameModalVisible(false); setRenameFolderId(null); setRenameText(''); }}
+              >
+                <Text style={[styles.renameCancelText, theme === 'dark' && { color: '#aaa' }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.renameConfirmBtn, !renameText.trim() && { opacity: 0.4 }]}
+                onPress={confirmRename}
+                disabled={!renameText.trim()}
+              >
+                <Text style={styles.renameConfirmText}>Rename</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -333,5 +491,60 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '300',
     lineHeight: 36,
+  },
+  renameOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  renameModal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '80%',
+    maxWidth: 340,
+  },
+  renameTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#23272F',
+  },
+  renameInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#f5f5f5',
+    color: '#23272F',
+    marginBottom: 20,
+  },
+  renameButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  renameCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  renameCancelText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  renameConfirmBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+  },
+  renameConfirmText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '700',
   },
 });

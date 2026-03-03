@@ -2,7 +2,7 @@ import React from 'react';
 import { FlatList, View, Text, StyleSheet } from 'react-native';
 import { FolderCard } from './FolderCard';
 
-export const FolderList = ({ folders, items, onDeleteFolder, onFolderPress, theme, onUpgrade }) => {
+export const FolderList = ({ folders, items, onDeleteFolder, onRenameFolder, onFolderPress, theme, onUpgrade }) => {
   const getFolderItemCount = (folderId) => {
     return items.filter((item) => item.folderId === folderId).length;
   };
@@ -24,6 +24,7 @@ export const FolderList = ({ folders, items, onDeleteFolder, onFolderPress, them
           folder={item}
           itemCount={getFolderItemCount(item.id)}
           onDelete={onDeleteFolder}
+          onRename={onRenameFolder}
           onPress={onFolderPress}
           theme={theme}
           onUpgrade={onUpgrade}

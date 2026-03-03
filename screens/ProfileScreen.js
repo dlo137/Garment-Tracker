@@ -265,12 +265,20 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
                   if (!authUser) throw new Error('Not authenticated');
 
                   const now = new Date().toISOString();
+
+                  // Generate incrementing subscription_id
+                  const { count: planCount } = await supabase
+                    .from('profiles')
+                    .select('*', { count: 'exact', head: true })
+                    .like('subscription_id', `${planId}_plan_%`);
+                  const nextPlanNum = (planCount || 0) + 1;
+
                   const { error: updateError } = await supabase
                     .from('profiles')
                     .update({
                       plan: planId,
                       is_pro_version: true,
-                      subscription_id: `sim_${planId}_${Date.now()}`,
+                      subscription_id: `${planId}_plan_${nextPlanNum}`,
                       purchase_time: now,
                       price: plan.billingPrice,
                       product_id: PLAN_PRODUCT_IDS[planId] || planId,

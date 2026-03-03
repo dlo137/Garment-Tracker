@@ -54,12 +54,22 @@ export default function SignUpScreen({ navigation, theme }) {
           return;
         }
 
-        // Update the profile with the name
+        // Update the profile with the name (single retry on failure)
         if (data?.user) {
-          await updateProfile(data.user.id, { name, email });
+          try {
+            await updateProfile(data.user.id, { name, email });
+          } catch (profileError) {
+            console.warn('Profile update failed, retrying once:', profileError.message);
+            try {
+              await updateProfile(data.user.id, { name, email });
+            } catch (retryError) {
+              console.error('Profile update retry failed:', retryError.message);
+              // Auth account was created successfully — profile will sync on next app launch
+            }
+          }
           Alert.alert(
             'Account Created!',
-            'Your account has been created. Please check your email to verify your address. All your existing data has been preserved.',
+            'Your account has been created.',
             [{ text: 'OK', onPress: () => navigation.goBack() }]
           );
         }
@@ -83,10 +93,19 @@ export default function SignUpScreen({ navigation, theme }) {
         }
 
         if (data?.user) {
-          await updateProfile(data.user.id, { name, email });
+          try {
+            await updateProfile(data.user.id, { name, email });
+          } catch (profileError) {
+            console.warn('Profile update failed, retrying once:', profileError.message);
+            try {
+              await updateProfile(data.user.id, { name, email });
+            } catch (retryError) {
+              console.error('Profile update retry failed:', retryError.message);
+            }
+          }
           Alert.alert(
             'Account Created!',
-            'Please check your email to verify your address.',
+            'Your account has been created.',
             [{ text: 'OK', onPress: () => navigation.goBack() }]
           );
         }
