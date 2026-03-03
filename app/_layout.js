@@ -73,7 +73,7 @@ export default function RootLayout() {
           <Stack.Screen name="folder/[id]" />
           <Stack.Screen
             name="subscription"
-            options={{ presentation: 'modal' }}
+            options={{ presentation: 'fullScreenModal' }}
           />
         </Stack>
       </GestureHandlerRootView>

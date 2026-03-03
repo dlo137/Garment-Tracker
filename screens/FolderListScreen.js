@@ -5,6 +5,8 @@ import { useInventoryStorage } from '../hooks/useInventoryStorage';
 import { FolderList } from '../components/FolderList';
 import { FolderForm } from '../components/FolderForm';
 import excelIcon from '../assets/excel.png';
+import profileIcon from '../assets/profile-icon.png';
+import profileIconDark from '../assets/profile-icon-dark.png';
 import * as DocumentPicker from 'expo-document-picker';
 import * as XLSX from 'xlsx';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -25,7 +27,7 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
         'Upgrade to Pro',
         'Get unlimited folders, items, and more when upgrading',
         [
-          { text: 'Upgrade', onPress: onNavigateToSubscription },
+          { text: 'Upgrade', onPress: onNavigateToSubscription, style: 'default' },
           { text: 'Maybe Later' },
         ]
       );
@@ -152,7 +154,7 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
             onPress={() => setAccountMenuVisible(true)}
             activeOpacity={0.7}
           >
-            <Text style={styles.accountIcon}>👤</Text>
+            <Image source={theme === 'dark' ? profileIcon : profileIconDark} style={styles.accountIconImage} resizeMode="contain" />
           </TouchableOpacity>
         </View>
         <Text style={[styles.subtitle, theme === 'dark' && { color: '#888' }]}>{folders.length} folders</Text>
@@ -239,13 +241,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 4,
   },
-  accountIcon: {
-    fontSize: 20,
+  accountIconImage: {
+    width: 34,
+    height: 34,
   },
   menuOverlay: {
     flex: 1,
@@ -319,17 +322,14 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#007AFF',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
   },
   addButtonText: {
-    color: '#fff',
+    color: '#007AFF',
     fontSize: 32,
     fontWeight: '300',
     lineHeight: 36,

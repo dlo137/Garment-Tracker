@@ -300,7 +300,10 @@ export default function SubscriptionScreen({ navigation }) {
     const planId = PLAN_PRODUCT_IDS[plan];
     const product = products.find((p) => (p.id ?? p.productId) === planId);
     if (product) {
-      const price = product.localizedPrice ?? product.price;
+      let price = product.localizedPrice;
+      if (!price && product.price != null) {
+        price = `$${parseFloat(product.price).toFixed(2)}`;
+      }
       if (price) return plan === 'yearly' ? `${price}/year` : `${price}/month`;
     }
     return fallbackPrice;
@@ -330,7 +333,7 @@ export default function SubscriptionScreen({ navigation }) {
           <View style={styles.logoGlow}>
             <View style={styles.logo}>
               <Image
-                source={require('../assets/icon.png')}
+                source={require('../assets/dark-icon.png')}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
@@ -369,7 +372,7 @@ export default function SubscriptionScreen({ navigation }) {
               <Text style={styles.planName}>Monthly</Text>
             </View>
             <View style={styles.planPricing}>
-              <Text style={styles.planPrice}>{formatPrice('monthly', '2.99/month')}</Text>
+              <Text style={styles.planPrice}>{formatPrice('monthly', '$2.99/month')}</Text>
             </View>
           </TouchableOpacity>
 

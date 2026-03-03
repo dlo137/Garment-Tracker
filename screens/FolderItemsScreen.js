@@ -143,7 +143,7 @@ export const FolderItemsScreen = ({ folderId, onBack, theme, toggleTheme, onNavi
         'Item Limit Reached',
         'Upgrade to pro to add more items.',
         [
-          { text: 'Upgrade', onPress: onNavigateToSubscription },
+          { text: 'Upgrade', onPress: onNavigateToSubscription, style: 'default' },
           { text: 'Maybe Later' },
         ]
       );
