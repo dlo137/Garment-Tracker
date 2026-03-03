@@ -13,6 +13,7 @@ export default function Index() {
       onFolderPress={(folderId) => router.push(`/folder/${folderId}`)}
       onNavigateToSubscription={() => router.push('/subscription')}
       onNavigateToProfile={() => router.push('/profile')}
+      onNavigateToSignUp={() => router.push('/signup')}
     />
   );
 }
