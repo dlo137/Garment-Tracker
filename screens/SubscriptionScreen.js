@@ -12,7 +12,8 @@ const PLAN_PRODUCT_IDS = {
   monthly: PRODUCT_IDS.MONTHLY,
 };
 
-export default function SubscriptionScreen({ navigation }) {
+export default function SubscriptionScreen({ navigation, theme }) {
+  const isDark = theme === 'dark';
   const [selectedPlan, setSelectedPlan] = useState('yearly');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [products, setProducts] = useState([]);
@@ -311,29 +312,29 @@ export default function SubscriptionScreen({ navigation }) {
 
   return (
     <LinearGradient
-      colors={['#050810', '#0d1120', '#08091a']}
+      colors={isDark ? ['#050810', '#0d1120', '#08091a'] : ['#f0f4ff', '#e8eeff', '#f5f7ff']}
       style={styles.container}
     >
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
       {/* Close Button */}
-      <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.closeText}>✕</Text>
+      <TouchableOpacity style={[styles.closeButton, !isDark && { backgroundColor: 'rgba(0, 0, 0, 0.06)' }]} onPress={() => navigation.goBack()}>
+        <Text style={[styles.closeText, !isDark && { color: '#333' }]}>✕</Text>
       </TouchableOpacity>
 
       {/* Restore Purchases */}
       <TouchableOpacity style={styles.alreadyPurchased} onPress={handleRestore}>
-        <Text style={styles.alreadyPurchasedText}>Restore Purchases</Text>
+        <Text style={[styles.alreadyPurchasedText, !isDark && { color: '#666' }]}>Restore Purchases</Text>
       </TouchableOpacity>
 
       {/* Header area - near the top */}
       <Animated.View style={{ opacity: fadeAnim, paddingTop: 140, paddingHorizontal: 24 }}>
         {/* Logo/Icon with Glow */}
         <View style={styles.logoContainer}>
-          <View style={styles.logoGlow}>
+          <View style={[styles.logoGlow, !isDark && { shadowColor: '#1e40af', shadowOpacity: 0.3 }]}>
             <View style={styles.logo}>
               <Image
-                source={require('../assets/dark-icon.png')}
+                source={isDark ? require('../assets/dark-icon.png') : require('../assets/icon.png')}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
@@ -343,8 +344,8 @@ export default function SubscriptionScreen({ navigation }) {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Unlock Full Inventory Power</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, !isDark && { color: '#1a1a2e' }]}>Unlock Full Inventory Power</Text>
+          <Text style={[styles.subtitle, !isDark && { color: '#666' }]}>
             Stop losing track of what you own. Unlimited folders, items, and more. Organize everything in one place, find anything in seconds, and stay in total control of your inventory.
           </Text>
         </View>
@@ -361,18 +362,20 @@ export default function SubscriptionScreen({ navigation }) {
           <TouchableOpacity
             style={[
               styles.planCard,
+              !isDark && styles.planCardLight,
               selectedPlan === 'monthly' && styles.selectedPlan,
+              selectedPlan === 'monthly' && !isDark && styles.selectedPlanLight,
             ]}
             onPress={() => setSelectedPlan('monthly')}
           >
-            <View style={styles.planRadio}>
+            <View style={[styles.planRadio, !isDark && { borderColor: '#999' }]}>
               {selectedPlan === 'monthly' && <View style={styles.planRadioSelected} />}
             </View>
             <View style={styles.planContent}>
-              <Text style={styles.planName}>Monthly</Text>
+              <Text style={[styles.planName, !isDark && { color: '#1a1a2e' }]}>Monthly</Text>
             </View>
             <View style={styles.planPricing}>
-              <Text style={styles.planPrice}>{formatPrice('monthly', '$2.99/month')}</Text>
+              <Text style={[styles.planPrice, !isDark && { color: '#666' }]}>{formatPrice('monthly', '$2.99/month')}</Text>
             </View>
           </TouchableOpacity>
 
@@ -380,7 +383,9 @@ export default function SubscriptionScreen({ navigation }) {
           <TouchableOpacity
             style={[
               styles.planCard,
+              !isDark && styles.planCardLight,
               selectedPlan === 'yearly' && styles.selectedPlan,
+              selectedPlan === 'yearly' && !isDark && styles.selectedPlanLight,
               styles.popularPlan,
             ]}
             onPress={() => setSelectedPlan('yearly')}
@@ -388,14 +393,14 @@ export default function SubscriptionScreen({ navigation }) {
             <View style={styles.tryFreeBadge}>
               <Text style={styles.tryFreeBadgeText}>BEST VALUE</Text>
             </View>
-            <View style={styles.planRadio}>
+            <View style={[styles.planRadio, !isDark && { borderColor: '#999' }]}>
               {selectedPlan === 'yearly' && <View style={styles.planRadioSelected} />}
             </View>
             <View style={styles.planContent}>
-              <Text style={styles.planName}>Yearly</Text>
+              <Text style={[styles.planName, !isDark && { color: '#1a1a2e' }]}>Yearly</Text>
             </View>
             <View style={styles.planPricing}>
-              <Text style={styles.planPrice}>{formatPrice('yearly', '$24.99/year')}</Text>
+              <Text style={[styles.planPrice, !isDark && { color: '#666' }]}>{formatPrice('yearly', '$24.99/year')}</Text>
               <Text style={styles.planSubtext}>Save 30%</Text>
             </View>
           </TouchableOpacity>
@@ -418,7 +423,7 @@ export default function SubscriptionScreen({ navigation }) {
             </Text>
           </LinearGradient>
         </TouchableOpacity>
-        <Text style={styles.cancelAnytimeText}>Cancel Anytime. No Commitment.</Text>
+        <Text style={[styles.cancelAnytimeText, !isDark && { color: '#999' }]}>Cancel Anytime. No Commitment.</Text>
       </View>
     </LinearGradient>
   );
@@ -518,7 +523,7 @@ const styles = StyleSheet.create({
   planCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 20,
     padding: 20,
     flexDirection: 'row',
@@ -539,6 +544,14 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
     }),
+  },
+  selectedPlanLight: {
+    borderColor: '#1e40af',
+    backgroundColor: 'rgba(30, 64, 175, 0.08)',
+  },
+  planCardLight: {
+    backgroundColor: '#fff',
+    borderColor: '#ccc',
   },
   popularPlan: {
     // Additional styling for popular plan

@@ -478,7 +478,7 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
           <Text style={[styles.userId, isDark && { color: '#8a9099' }]}>
             {user?.id ? `ID: ${user.id.substring(0, 8)}...` : ''}
           </Text>
-          <View style={[styles.planBadge, isDark && { backgroundColor: '#2a3038' }]}>
+          <View style={[styles.planBadge, isDark && { backgroundColor: '#2a3038', borderColor: '#3a4048' }]}>
             <Text style={[styles.planBadgeText, isDark && { color: '#e7ebf0' }]}>{currentPlan}</Text>
           </View>
         </View>
@@ -627,21 +627,21 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
 
       {/* Plans / Upgrade Modal */}
       <Modal visible={isBillingModalVisible} transparent animationType="fade" onRequestClose={() => setIsBillingModalVisible(false)}>
-        <LinearGradient colors={['#050810', '#0d1120', '#08091a']} style={styles.gradientOverlay}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => setIsBillingModalVisible(false)}>
-            <Text style={styles.closeButtonText}>✕</Text>
+        <LinearGradient colors={isDark ? ['#050810', '#0d1120', '#08091a'] : ['#f0f4ff', '#e8eeff', '#f5f7ff']} style={styles.gradientOverlay}>
+          <TouchableOpacity style={[styles.closeButton, !isDark && { backgroundColor: 'rgba(0, 0, 0, 0.06)' }]} onPress={() => setIsBillingModalVisible(false)}>
+            <Text style={[styles.closeButtonText, !isDark && { color: '#333' }]}>✕</Text>
           </TouchableOpacity>
 
           <ScrollView contentContainerStyle={styles.plansScrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.logoContainer}>
-              <View style={styles.logoGlow}>
-                <Image source={require('../assets/dark-icon.png')} style={styles.logoImage} resizeMode="contain" />
+              <View style={[styles.logoGlow, !isDark && { shadowOpacity: 0.3 }]}>
+                <Image source={isDark ? require('../assets/dark-icon.png') : require('../assets/icon.png')} style={styles.logoImage} resizeMode="contain" />
               </View>
             </View>
 
             <View style={styles.plansHeader}>
-              <Text style={styles.plansTitle}>Unlock Full Inventory Power</Text>
-              <Text style={styles.plansSubtitle}>
+              <Text style={[styles.plansTitle, !isDark && { color: '#1a1a2e' }]}>Unlock Full Inventory Power</Text>
+              <Text style={[styles.plansSubtitle, !isDark && { color: '#666' }]}>
                 Stop losing track of what you own. Unlimited folders, items, and more. Organize everything in one place.
               </Text>
             </View>
@@ -657,7 +657,9 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
                     key={plan.id}
                     style={[
                       styles.planCard,
+                      !isDark && styles.planCardLight,
                       selectedPlan === plan.id && styles.selectedPlanCard,
+                      selectedPlan === plan.id && !isDark && styles.selectedPlanCardLight,
                       isActivePlan && styles.disabledPlan,
                     ]}
                     onPress={() => !isActivePlan && setSelectedPlan(plan.id)}
@@ -673,14 +675,14 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
                         <Text style={styles.bestValueText}>BEST VALUE</Text>
                       </View>
                     )}
-                    <View style={[styles.planRadio, isActivePlan && { borderColor: '#5a6069' }]}>
+                    <View style={[styles.planRadio, isActivePlan && { borderColor: '#5a6069' }, !isDark && { borderColor: '#999' }]}>
                       {selectedPlan === plan.id && !isActivePlan && <View style={styles.planRadioSelected} />}
                     </View>
                     <View style={styles.planContent}>
-                      <Text style={[styles.planName, isActivePlan && { color: '#5a6069' }]}>{plan.name}</Text>
+                      <Text style={[styles.planName, isActivePlan && { color: '#5a6069' }, !isDark && !isActivePlan && { color: '#1a1a2e' }]}>{plan.name}</Text>
                     </View>
                     <View style={styles.planPricing}>
-                      <Text style={styles.planPrice}>{formatPrice(plan.id, plan.price)}</Text>
+                      <Text style={[styles.planPrice, !isDark && { color: '#666' }]}>{formatPrice(plan.id, plan.price)}</Text>
                       {plan.id === 'yearly' && <Text style={styles.planSaveText}>Save 30%</Text>}
                     </View>
                   </TouchableOpacity>
@@ -701,7 +703,7 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
-            <Text style={styles.cancelAnytimeText}>Cancel Anytime. No Commitment.</Text>
+            <Text style={[styles.cancelAnytimeText, !isDark && { color: '#999' }]}>Cancel Anytime. No Commitment.</Text>
           </View>
         </LinearGradient>
       </Modal>
@@ -849,6 +851,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 5,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
   planBadgeText: {
     fontSize: 13,
@@ -1120,7 +1124,7 @@ const styles = StyleSheet.create({
   planCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 20,
     padding: 20,
     flexDirection: 'row',
@@ -1139,6 +1143,14 @@ const styles = StyleSheet.create({
       },
       android: { elevation: 4 },
     }),
+  },
+  selectedPlanCardLight: {
+    borderColor: '#1e40af',
+    backgroundColor: 'rgba(30, 64, 175, 0.08)',
+  },
+  planCardLight: {
+    backgroundColor: '#fff',
+    borderColor: '#ccc',
   },
   disabledPlan: {
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
