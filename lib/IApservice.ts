@@ -3,16 +3,14 @@ import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// react-native-iap v13 (traditional TurboModule — NOT Nitro).
-// v14 was dropped: its Nitro JSI bridge lets StoreKit ObjC exceptions escape
-// through the C++ performVoidMethodInvocation boundary, causing SIGABRT.
-// v13 wraps those same exceptions in Promise rejections, so no crash.
+// react-native-iap v14 (Nitro JSI). This is the only version that builds with
+// React Native 0.81.5 + New Architecture. v13 fails pod install because it
+// depends on `RCT-Folly` as a standalone CocoaPod, which is no longer available
+// in RN 0.81.5's prebuilt binary mode (it's bundled in ReactNativeDependencies).
 //
-//   getSubscriptions({ skus })
-//   requestSubscription({ sku, andDangerouslyFinishTransactionAutomaticallyIOS, subscriptionOffers })
-//   finishTransaction({ purchase, isConsumable })
-//   getAvailablePurchases()
-//   purchaseUpdatedListener / purchaseErrorListener
+// Runtime crash risk: StoreKit ObjC exceptions can escape through the C++
+// TurboModule boundary → SIGABRT. Mitigated by deferred require (below) and
+// only initializing IAP when the user opens the Subscription screen.
 // ─────────────────────────────────────────────────────────────────────────────
 
 let iapAvailable = false;
