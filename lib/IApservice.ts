@@ -3,22 +3,16 @@ import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// react-native-iap v14 API reference (Nitro JSI engine, same public JS API):
+// react-native-iap v13 (traditional TurboModule — NOT Nitro).
+// v14 was dropped: its Nitro JSI bridge lets StoreKit ObjC exceptions escape
+// through the C++ performVoidMethodInvocation boundary, causing SIGABRT.
+// v13 wraps those same exceptions in Promise rejections, so no crash.
 //
-//   getSubscriptions({ skus })                    ← fetch subscription products
-//   requestSubscription({                         ← initiate a subscription
-//     sku,                                        (iOS + Android)
-//     andDangerouslyFinishTransactionAutomaticallyIOS: false,
-//     subscriptionOffers: [{ sku, offerToken }]   (Android only)
-//   })
+//   getSubscriptions({ skus })
+//   requestSubscription({ sku, andDangerouslyFinishTransactionAutomaticallyIOS, subscriptionOffers })
 //   finishTransaction({ purchase, isConsumable })
-//   getAvailablePurchases()                        ← restore / pending check
+//   getAvailablePurchases()
 //   purchaseUpdatedListener / purchaseErrorListener
-//
-// Purchase object fields (v14):
-//   purchase.transactionId — primary key on iOS (orderId on Android)
-//   purchase.productId     — the SKU
-//   purchase.purchaseToken — iOS JWS receipt or Android token
 // ─────────────────────────────────────────────────────────────────────────────
 
 let iapAvailable = false;
@@ -31,8 +25,7 @@ let iapLoadAttempted = false;
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 // Deferred import — do NOT load at module parse time.
-// v14 uses Nitro JSI under the hood; loading is deferred to avoid
-// auto-registration before the Hermes runtime is fully initialized.
+// Avoids loading the native module in Expo Go where it is unavailable.
 function ensureIAPLoaded() {
   if (iapLoadAttempted) return;
   iapLoadAttempted = true;

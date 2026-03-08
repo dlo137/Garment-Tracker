@@ -5,6 +5,16 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from '../hooks/useTheme';
 import { supabase } from '../lib/supabaseClient';
 import { initializeProfile } from '../lib/profileService';
+import { ErrorUtils } from 'react-native';
+
+// Global error handler to catch native module crashes (see crashlog 2026-03-07)
+const originalHandler = ErrorUtils.getGlobalHandler();
+ErrorUtils.setGlobalHandler((error, isFatal) => {
+  console.error('GLOBAL ERROR:', isFatal ? '[FATAL]' : '[NON-FATAL]', error.message, error.stack);
+  if (originalHandler) {
+    originalHandler(error, isFatal);
+  }
+});
 
 export default function RootLayout() {
   const [isAuthenticating, setIsAuthenticating] = useState(true);
