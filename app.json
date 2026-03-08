@@ -26,7 +26,8 @@
       }
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "react-native-iap"
     ]
   }
 }

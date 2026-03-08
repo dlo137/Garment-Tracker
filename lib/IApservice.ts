@@ -3,49 +3,55 @@ import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// react-native-iap v14 (Nitro) API reference:
+// react-native-iap v14 API reference (Nitro JSI engine, same public JS API):
 //
-//   fetchProducts({ skus, type: 'subs' })         ← fetch subscription products
-//   requestPurchase({                              ← initiate a purchase
-//     type: 'subs',
-//     request: {
-//       apple: { sku }                            (iOS)
-//       google: { skus: [...], subscriptionOffers: [] }  (Android)
-//     }
+//   getSubscriptions({ skus })                    ← fetch subscription products
+//   requestSubscription({                         ← initiate a subscription
+//     sku,                                        (iOS + Android)
+//     andDangerouslyFinishTransactionAutomaticallyIOS: false,
+//     subscriptionOffers: [{ sku, offerToken }]   (Android only)
 //   })
-//   finishTransaction({ purchase, isConsumable })  ← uses purchase.id on iOS
+//   finishTransaction({ purchase, isConsumable })
 //   getAvailablePurchases()                        ← restore / pending check
 //   purchaseUpdatedListener / purchaseErrorListener
 //
 // Purchase object fields (v14):
-//   purchase.id           — primary key (transactionId on iOS, orderId on Android)
-//   purchase.productId    — the SKU
-//   purchase.purchaseToken — iOS JWS or Android token
+//   purchase.transactionId — primary key on iOS (orderId on Android)
+//   purchase.productId     — the SKU
+//   purchase.purchaseToken — iOS JWS receipt or Android token
 // ─────────────────────────────────────────────────────────────────────────────
 
 let iapAvailable = false;
 let iapModule: any = null;
+let iapLoadAttempted = false;
 
-// react-native-iap v14 uses Nitro Modules, which throw a fatal native error
-// when imported in Expo Go ("NitroModules are not supported in Expo Go").
+// react-native-iap requires a native build (not available in Expo Go).
 // Gate the import behind an Expo Go check so the error never surfaces —
 // the subscription screen will use the simulated purchase flow instead.
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-if (!isExpoGo) {
-  try {
-    iapModule = require('react-native-iap');
-    if (typeof iapModule.initConnection === 'function') {
-      iapAvailable = true;
-      console.log('[IAP] ✅ Module loaded, initConnection present');
-    } else {
-      console.log('[IAP] ❌ initConnection missing — module may not be linked');
+// Deferred import — do NOT load at module parse time.
+// v14 uses Nitro JSI under the hood; loading is deferred to avoid
+// auto-registration before the Hermes runtime is fully initialized.
+function ensureIAPLoaded() {
+  if (iapLoadAttempted) return;
+  iapLoadAttempted = true;
+
+  if (!isExpoGo) {
+    try {
+      iapModule = require('react-native-iap');
+      if (typeof iapModule.initConnection === 'function') {
+        iapAvailable = true;
+        console.log('[IAP] ✅ Module loaded, initConnection present');
+      } else {
+        console.log('[IAP] ❌ initConnection missing — module may not be linked');
+      }
+    } catch (e: any) {
+      console.log('[IAP] require failed:', e?.message);
     }
-  } catch (e: any) {
-    console.log('[IAP] require failed:', e?.message);
+  } else {
+    console.log('[IAP] Expo Go detected — skipping IAP import, simulation mode active');
   }
-} else {
-  console.log('[IAP] Expo Go detected — skipping Nitro IAP import, simulation mode active');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -105,6 +111,7 @@ class IAPService {
   // ── Public API ─────────────────────────────────────────────────────────────
 
   isAvailable(): boolean {
+    ensureIAPLoaded();
     return iapAvailable && iapModule !== null;
   }
 
@@ -181,35 +188,35 @@ class IAPService {
     const productIds = Platform.OS === 'ios' ? IOS_PRODUCT_IDS : ANDROID_PRODUCT_IDS;
     this.log(`Requesting SKUs: ${productIds.join(', ')}`);
 
-    if (typeof iapModule.fetchProducts !== 'function') {
-      this.log('❌ fetchProducts not available — unexpected for v14');
+    if (typeof iapModule.getSubscriptions !== 'function') {
+      this.log('❌ getSubscriptions not available — check react-native-iap linkage');
       return [];
     }
 
     // Attempt 1: subscriptions (the correct type for all our products)
-    this.log('ATTEMPT 1: fetchProducts({ skus, type: "subs" })');
+    this.log('ATTEMPT 1: getSubscriptions({ skus })');
     try {
-      const results = await iapModule.fetchProducts({ skus: productIds, type: 'subs' });
+      const results = await iapModule.getSubscriptions({ skus: productIds });
       if (results?.length > 0) {
         this.log(`✅ Got ${results.length} products`);
         return results;
       }
-      this.log('Returned 0 — trying type: "all"');
+      this.log('Returned 0 — trying getProducts fallback');
     } catch (e: any) {
-      this.log(`fetchProducts(subs) failed: ${e?.message}`);
+      this.log(`getSubscriptions failed: ${e?.message}`);
     }
 
-    // Attempt 2: 'all' catches any mixed in-app / subscription set
-    this.log('ATTEMPT 2: fetchProducts({ skus, type: "all" })');
+    // Attempt 2: one-time products fallback (catches misclassified SKUs)
+    this.log('ATTEMPT 2: getProducts({ skus })');
     try {
-      const results = await iapModule.fetchProducts({ skus: productIds, type: 'all' });
+      const results = await iapModule.getProducts({ skus: productIds });
       if (results?.length > 0) {
-        this.log(`✅ Got ${results.length} products via "all"`);
+        this.log(`✅ Got ${results.length} products via getProducts`);
         return results;
       }
       this.log('Returned 0');
     } catch (e: any) {
-      this.log(`fetchProducts(all) failed: ${e?.message}`);
+      this.log(`getProducts failed: ${e?.message}`);
     }
 
     this.log('========== ALL ATTEMPTS FAILED ==========');
@@ -249,26 +256,19 @@ class IAPService {
       console.log('[IAP] requestPurchase:', productId, offerToken ? `offerToken: ${offerToken.substring(0, 20)}...` : '');
 
       if (Platform.OS === 'ios') {
-        await iapModule.requestPurchase({
-          type: 'subs',
-          request: {
-            apple: { sku: productId },
-          },
+        await iapModule.requestSubscription({
+          sku: productId,
+          andDangerouslyFinishTransactionAutomaticallyIOS: false,
         });
       } else {
-        // Android requires subscriptionOffers with the offerToken from fetchProducts
+        // Android requires subscriptionOffers with the offerToken from getSubscriptions
         const subscriptionOffers = offerToken
           ? [{ sku: productId, offerToken }]
           : [];
-        this.plog(`Android purchase — skus: [${productId}] offers: ${subscriptionOffers.length}`);
-        await iapModule.requestPurchase({
-          type: 'subs',
-          request: {
-            google: {
-              skus: [productId],
-              subscriptionOffers,
-            },
-          },
+        this.plog(`Android purchase — sku: ${productId} offers: ${subscriptionOffers.length}`);
+        await iapModule.requestSubscription({
+          sku: productId,
+          subscriptionOffers,
         });
       }
 

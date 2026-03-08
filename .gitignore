@@ -11,6 +11,9 @@ npm-debug.*
 web-build/
 .env
 
+# CNG / Prebuild — EAS Build regenerates these
+/ios
+
 # macOS
 .DS_Store
 
