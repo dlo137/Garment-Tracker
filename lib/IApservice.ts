@@ -1,486 +1,263 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// react-native-iap v14 (Nitro JSI). This is the only version that builds with
-// React Native 0.81.5 + New Architecture. v13 fails pod install because it
-// depends on `RCT-Folly` as a standalone CocoaPod, which is no longer available
-// in RN 0.81.5's prebuilt binary mode (it's bundled in ReactNativeDependencies).
+// All react-native-iap access goes through dynamic import() inside async
+// functions. Nothing here runs at module parse time. initConnection() is only
+// called from user-action handlers (button taps), never from useEffect,
+// context providers, or app startup code.
 //
-// Runtime crash risk: StoreKit ObjC exceptions can escape through the C++
-// TurboModule boundary → SIGABRT. Mitigated by deferred require (below) and
-// only initializing IAP when the user opens the Subscription screen.
+// This prevents NitroIap from being touched by JS before the native Nitro
+// bridge is ready, which was causing the SIGABRT startup crash.
 // ─────────────────────────────────────────────────────────────────────────────
 
-let iapAvailable = false;
-let iapModule: any = null;
-let iapLoadAttempted = false;
-
-// react-native-iap requires a native build (not available in Expo Go).
-// Gate the import behind an Expo Go check so the error never surfaces —
-// the subscription screen will use the simulated purchase flow instead.
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-
-// Deferred import — do NOT load at module parse time.
-// Avoids loading the native module in Expo Go where it is unavailable.
-function ensureIAPLoaded() {
-  if (iapLoadAttempted) return;
-  iapLoadAttempted = true;
-
-  if (!isExpoGo) {
-    try {
-      iapModule = require('react-native-iap');
-      if (typeof iapModule.initConnection === 'function') {
-        iapAvailable = true;
-        console.log('[IAP] ✅ Module loaded, initConnection present');
-      } else {
-        console.log('[IAP] ❌ initConnection missing — module may not be linked');
-      }
-    } catch (e: any) {
-      console.log('[IAP] require failed:', e?.message);
-    }
-  } else {
-    console.log('[IAP] Expo Go detected — skipping IAP import, simulation mode active');
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Product ID constants
-// ─────────────────────────────────────────────────────────────────────────────
 export const PRODUCT_IDS = {
   MONTHLY: 'monthly.plan.id',
-  YEARLY: 'yearly.plan.id',
+  YEARLY:  'yearly.plan.id',
 };
 
-const IOS_PRODUCT_IDS = [PRODUCT_IDS.YEARLY, PRODUCT_IDS.MONTHLY];
-const ANDROID_PRODUCT_IDS = [PRODUCT_IDS.YEARLY, PRODUCT_IDS.MONTHLY];
-
+const SKUS = [PRODUCT_IDS.YEARLY, PRODUCT_IDS.MONTHLY];
 const INFLIGHT_KEY = 'iapPurchaseInFlight';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// IAPService singleton
-// ─────────────────────────────────────────────────────────────────────────────
-class IAPService {
-  private static instance: IAPService;
-  private isConnected = false;
-  private hasListener = false;
-  private processedIds = new Set<string>();
-  private lastPurchaseResult: any = null;
-  private debugCallback: ((info: any) => void) | null = null;
-  private currentPurchaseProductId: string | null = null;
-  private purchasePromiseResolve: ((value: void) => void) | null = null;
-  private purchasePromiseReject: ((reason?: any) => void) | null = null;
-  private purchaseUpdateSubscription: any = null;
-  private purchaseErrorSubscription: any = null;
-  private productFetchLogs: string[] = [];
-  private purchaseLogs: string[] = [];
+// Cached module reference — populated only on first user-action call.
+let _iap: any = null;
 
-  private constructor() {}
-
-  getPurchaseLogs(): string[] {
-    return [...this.purchaseLogs];
+async function loadIAP(): Promise<any | null> {
+  if (_iap) return _iap;
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    console.warn('[IAP] loadIAP skipped — unsupported platform:', Platform.OS);
+    return null;
   }
-
-  clearPurchaseLogs() {
-    this.purchaseLogs = [];
+  try {
+    _iap = await import('react-native-iap');
+    console.log('[IAP] react-native-iap loaded via dynamic import');
+    return _iap;
+  } catch (e: any) {
+    console.warn('[IAP] dynamic import failed:', e?.message);
+    return null;
   }
+}
 
-  private plog(msg: string) {
-    const ts = new Date().toLocaleTimeString();
-    const entry = `[${ts}] ${msg}`;
-    this.purchaseLogs.push(entry);
-    console.log('[IAP-PURCHASE]', msg);
-    this.debugCallback?.({ purchaseLog: entry, allPurchaseLogs: [...this.purchaseLogs] });
-  }
+// ── fetchProducts ─────────────────────────────────────────────────────────────
+// Call only from a button handler or screen-specific useEffect that runs after
+// an explicit user navigation — never from the root layout or a provider.
 
-  static getInstance(): IAPService {
-    if (!IAPService.instance) IAPService.instance = new IAPService();
-    return IAPService.instance;
-  }
+export async function fetchProducts(): Promise<any[]> {
+  const iap = await loadIAP();
+  if (!iap) return [];
 
-  // ── Public API ─────────────────────────────────────────────────────────────
-
-  isAvailable(): boolean {
-    ensureIAPLoaded();
-    return iapAvailable && iapModule !== null;
-  }
-
-  getLastPurchaseResult() {
-    return this.lastPurchaseResult;
-  }
-
-  setDebugCallback(cb: (info: any) => void) {
-    this.debugCallback = cb;
-  }
-
-  getProductFetchLogs(): string[] {
-    return [...this.productFetchLogs];
-  }
-
-  getConnectionStatus() {
-    return { isConnected: this.isConnected, hasListener: this.hasListener };
-  }
-
-  // ── Initialization ─────────────────────────────────────────────────────────
-
-  async initialize(): Promise<boolean> {
-    if (!this.isAvailable()) {
-      console.log('[IAP] Not available — skipping init');
-      return false;
-    }
-
+  if (Platform.OS === 'ios') {
     try {
-      console.log('[IAP] Initializing... platform:', Platform.OS);
-
-      if (!this.isConnected) {
-        const result = await iapModule.initConnection();
-        console.log('[IAP] initConnection result:', result);
-        this.isConnected = true;
-      }
-
-      if (!this.hasListener) {
-        this.setupPurchaseListeners();
-        this.hasListener = true;
-      }
-
-      await this.checkForPendingPurchases();
-      return true;
+      await iap.initConnection();
     } catch (e: any) {
-      console.error('[IAP] initialize failed:', e?.message);
-      return false;
-    }
-  }
-
-  // ── Product fetching ───────────────────────────────────────────────────────
-
-  async getProducts(): Promise<any[]> {
-    this.productFetchLogs = [];
-    this.log('========== PRODUCT FETCH ==========');
-    this.log(`Platform: ${Platform.OS}`);
-
-    if (!this.isAvailable()) {
-      this.log('❌ IAP not available');
+      console.warn('[IAP] initConnection failed (ios):', e?.message);
       return [];
     }
-
-    if (!this.isConnected) {
-      this.log('Not connected — initializing...');
-      const ok = await this.initialize();
-      if (!ok) {
-        this.log('❌ Initialization failed');
-        return [];
-      }
-    }
-
-    // Brief pause to let StoreKit settle after connection
-    await new Promise(r => setTimeout(r, 500));
-
-    const productIds = Platform.OS === 'ios' ? IOS_PRODUCT_IDS : ANDROID_PRODUCT_IDS;
-    this.log(`Requesting SKUs: ${productIds.join(', ')}`);
-
-    if (typeof iapModule.getSubscriptions !== 'function') {
-      this.log('❌ getSubscriptions not available — check react-native-iap linkage');
+  } else {
+    try {
+      await iap.initConnection();
+    } catch (e: any) {
+      console.warn('[IAP] initConnection failed (android):', e?.message);
       return [];
     }
+  }
 
-    // Attempt 1: subscriptions (the correct type for all our products)
-    this.log('ATTEMPT 1: getSubscriptions({ skus })');
-    try {
-      const results = await iapModule.getSubscriptions({ skus: productIds });
-      if (results?.length > 0) {
-        this.log(`✅ Got ${results.length} products`);
-        return results;
-      }
-      this.log('Returned 0 — trying getProducts fallback');
-    } catch (e: any) {
-      this.log(`getSubscriptions failed: ${e?.message}`);
-    }
+  try {
+    const subs = await iap.getSubscriptions({ skus: SKUS });
+    if (subs?.length) return subs;
+  } catch (e: any) {
+    console.warn('[IAP] getSubscriptions failed:', e?.message);
+  }
 
-    // Attempt 2: one-time products fallback (catches misclassified SKUs)
-    this.log('ATTEMPT 2: getProducts({ skus })');
-    try {
-      const results = await iapModule.getProducts({ skus: productIds });
-      if (results?.length > 0) {
-        this.log(`✅ Got ${results.length} products via getProducts`);
-        return results;
-      }
-      this.log('Returned 0');
-    } catch (e: any) {
-      this.log(`getProducts failed: ${e?.message}`);
-    }
-
-    this.log('========== ALL ATTEMPTS FAILED ==========');
-    this.log('Checklist:');
-    this.log('  1. Product IDs match App Store Connect / Google Play exactly');
-    this.log('  2. Products are in "Ready to Submit" or "Approved" state');
-    this.log('  3. Sandbox account is signed into the device');
-    this.log('  4. Bundle ID matches provisioning profile');
-    this.log(`  Requested: ${productIds.join(', ')}`);
+  try {
+    return (await iap.getProducts({ skus: SKUS })) ?? [];
+  } catch (e: any) {
+    console.warn('[IAP] getProducts failed:', e?.message);
     return [];
   }
+}
 
-  // ── Purchase flow ──────────────────────────────────────────────────────────
+// ── purchaseSubscription ──────────────────────────────────────────────────────
+// Full purchase flow: connect → register listeners → request → finish → cleanup.
+// Listeners are registered AFTER initConnection resolves.
+// endConnection is always called in finally, even if the purchase fails.
 
-  // offerToken is required on Android (from subscriptionOfferDetails in the fetched product)
-  async purchaseProduct(productId: string, offerToken?: string): Promise<void> {
-    if (!this.isAvailable()) throw new Error('IAP not available');
-    if (!this.isConnected) await this.initialize();
+export async function purchaseSubscription(
+  sku: string,
+  offerToken?: string,
+): Promise<any> {
+  const iap = await loadIAP();
+  if (!iap) throw new Error('IAP not available on this platform');
 
-    this.currentPurchaseProductId = productId;
-    await AsyncStorage.setItem(INFLIGHT_KEY, 'true');
+  if (Platform.OS === 'ios') {
+    try {
+      await iap.initConnection();
+    } catch (e: any) {
+      throw new Error('Could not connect to App Store: ' + (e?.message ?? e));
+    }
+  } else {
+    try {
+      await iap.initConnection();
+    } catch (e: any) {
+      throw new Error('Could not connect to Play Store: ' + (e?.message ?? e));
+    }
+  }
 
-    const purchasePromise = new Promise<void>((resolve, reject) => {
-      this.purchasePromiseResolve = resolve;
-      this.purchasePromiseReject = reject;
-      setTimeout(async () => {
-        if (this.purchasePromiseReject) {
-          await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
-          this.purchasePromiseReject(new Error('Purchase timeout'));
-          this.purchasePromiseResolve = null;
-          this.purchasePromiseReject = null;
+  await AsyncStorage.setItem(INFLIGHT_KEY, 'true');
+
+  let updateSub: any = null;
+  let errorSub: any = null;
+
+  try {
+    const purchase = await new Promise<any>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Purchase timed out')), 60000);
+
+      // Register purchaseUpdatedListener AFTER initConnection resolves.
+      if (Platform.OS === 'ios') {
+        try {
+          updateSub = iap.purchaseUpdatedListener((p: any) => {
+            clearTimeout(timer);
+            resolve(p);
+          });
+        } catch (e: any) {
+          console.warn('[IAP] purchaseUpdatedListener failed (ios):', e?.message);
         }
-      }, 60000);
+
+        try {
+          errorSub = iap.purchaseErrorListener((err: any) => {
+            clearTimeout(timer);
+            reject(new Error(err?.message ?? 'Purchase error'));
+          });
+        } catch (e: any) {
+          console.warn('[IAP] purchaseErrorListener failed (ios):', e?.message);
+        }
+
+        try {
+          iap.requestSubscription({
+            sku,
+            andDangerouslyFinishTransactionAutomaticallyIOS: false,
+          });
+        } catch (e: any) {
+          clearTimeout(timer);
+          reject(e);
+        }
+      } else {
+        // Android
+        try {
+          updateSub = iap.purchaseUpdatedListener((p: any) => {
+            clearTimeout(timer);
+            resolve(p);
+          });
+        } catch (e: any) {
+          console.warn('[IAP] purchaseUpdatedListener failed (android):', e?.message);
+        }
+
+        try {
+          errorSub = iap.purchaseErrorListener((err: any) => {
+            clearTimeout(timer);
+            reject(new Error(err?.message ?? 'Purchase error'));
+          });
+        } catch (e: any) {
+          console.warn('[IAP] purchaseErrorListener failed (android):', e?.message);
+        }
+
+        try {
+          iap.requestSubscription({
+            sku,
+            subscriptionOffers: offerToken ? [{ sku, offerToken }] : [],
+          });
+        } catch (e: any) {
+          clearTimeout(timer);
+          reject(e);
+        }
+      }
     });
 
-    try {
-      console.log('[IAP] requestPurchase:', productId, offerToken ? `offerToken: ${offerToken.substring(0, 20)}...` : '');
-
-      if (Platform.OS === 'ios') {
-        await iapModule.requestSubscription({
-          sku: productId,
-          andDangerouslyFinishTransactionAutomaticallyIOS: false,
-        });
-      } else {
-        // Android requires subscriptionOffers with the offerToken from getSubscriptions
-        const subscriptionOffers = offerToken
-          ? [{ sku: productId, offerToken }]
-          : [];
-        this.plog(`Android purchase — sku: ${productId} offers: ${subscriptionOffers.length}`);
-        await iapModule.requestSubscription({
-          sku: productId,
-          subscriptionOffers,
-        });
+    // Finish the transaction
+    if (Platform.OS === 'ios') {
+      try {
+        await iap.finishTransaction({ purchase, isConsumable: false });
+      } catch (e: any) {
+        console.warn('[IAP] finishTransaction failed (ios):', e?.message);
       }
-
-      this.debugCallback?.({ listenerStatus: 'PURCHASE INITIATED — WAITING ⏳', productId });
-      await purchasePromise;
-      console.log('[IAP] ✅ Purchase complete');
-    } catch (e: any) {
-      console.error('[IAP] purchaseProduct error:', e?.message);
-      await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
-      this.currentPurchaseProductId = null;
-      this.purchasePromiseResolve = null;
-      this.purchasePromiseReject = null;
-      this.debugCallback?.({ listenerStatus: 'PURCHASE FAILED ❌' });
-
-      if (e?.code === 'E_USER_CANCELLED' || e?.message?.includes('cancel')) {
-        throw new Error('User cancelled purchase');
-      }
-      throw e;
-    }
-  }
-
-  // ── Restore ────────────────────────────────────────────────────────────────
-
-  async restorePurchases(): Promise<any[]> {
-    if (!this.isAvailable()) throw new Error('IAP not available');
-    if (!this.isConnected) await this.initialize();
-
-    await AsyncStorage.setItem(INFLIGHT_KEY, 'true');
-    try {
-      const purchases = await iapModule.getAvailablePurchases();
-      if (!purchases?.length) {
-        await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
-        throw new Error('No previous purchases found');
-      }
-      for (const p of purchases) await this.processPurchase(p, 'restore');
-      await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
-      return purchases;
-    } catch (e) {
-      await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
-      throw e;
-    }
-  }
-
-  // ── Orphan check ───────────────────────────────────────────────────────────
-
-  async checkForOrphanedTransactions(): Promise<void> {
-    if (!this.isAvailable()) return;
-    if (!this.isConnected) await this.initialize();
-    await this.checkForPendingPurchases();
-  }
-
-  // ── Cleanup ────────────────────────────────────────────────────────────────
-
-  async cleanup() {
-    if (!this.isAvailable()) return;
-    this.purchaseUpdateSubscription?.remove();
-    this.purchaseUpdateSubscription = null;
-    this.purchaseErrorSubscription?.remove();
-    this.purchaseErrorSubscription = null;
-    if (this.isConnected) {
-      await iapModule.endConnection();
-      this.isConnected = false;
-    }
-    this.hasListener = false;
-  }
-
-  // ── Private helpers ────────────────────────────────────────────────────────
-
-  private log(msg: string) {
-    const ts = new Date().toLocaleTimeString();
-    this.productFetchLogs.push(`[${ts}] ${msg}`);
-    console.log('[IAP]', msg);
-  }
-
-  private setupPurchaseListeners() {
-    if (!this.isAvailable()) return;
-
-    this.purchaseUpdateSubscription = iapModule.purchaseUpdatedListener(
-      async (purchase: any) => {
-        this.plog(`🎉 purchaseUpdatedListener fired — productId=${purchase?.productId} id=${purchase?.id} transactionId=${purchase?.transactionId}`);
-        this.lastPurchaseResult = purchase;
-        this.debugCallback?.({ lastPurchase: purchase, listenerStatus: 'PURCHASE RECEIVED ✅' });
-        await this.handlePurchaseUpdate(purchase);
-      }
-    );
-
-    this.purchaseErrorSubscription = iapModule.purchaseErrorListener(
-      (error: any) => {
-        this.plog(`❌ purchaseErrorListener: ${error?.message} (code=${error?.code})`);
-        this.debugCallback?.({ listenerStatus: `PURCHASE ERROR ❌: ${error.message}` });
-        this.currentPurchaseProductId = null;
-        AsyncStorage.setItem(INFLIGHT_KEY, 'false');
-        if (this.purchasePromiseReject) {
-          this.purchasePromiseReject(new Error(error.message));
-          this.purchasePromiseResolve = null;
-          this.purchasePromiseReject = null;
-        }
-      }
-    );
-
-    console.log('[IAP] Purchase listeners registered');
-  }
-
-  private async handlePurchaseUpdate(purchase: any) {
-    try {
-      await this.processPurchase(purchase, 'listener');
-      if (this.purchasePromiseResolve) {
-        this.purchasePromiseResolve();
-        this.purchasePromiseResolve = null;
-        this.purchasePromiseReject = null;
-      }
-    } catch (e) {
-      console.error('[IAP] handlePurchaseUpdate error:', e);
-      if (this.purchasePromiseReject) {
-        this.purchasePromiseReject(e);
-        this.purchasePromiseResolve = null;
-        this.purchasePromiseReject = null;
+    } else {
+      try {
+        await iap.finishTransaction({ purchase, isConsumable: false });
+      } catch (e: any) {
+        console.warn('[IAP] finishTransaction failed (android):', e?.message);
       }
     }
-  }
 
-  private async checkForPendingPurchases() {
-    try {
-      const purchases = await iapModule.getAvailablePurchases();
-      if (purchases?.length > 0) {
-        console.log(`[IAP] Found ${purchases.length} pending purchase(s)`);
-        for (const p of purchases) {
-          const txId = p.id ?? p.transactionId;
-          if (txId && !this.processedIds.has(txId)) {
-            await this.processPurchase(p, 'orphan');
-          }
-        }
-      } else {
-        console.log('[IAP] No pending purchases');
-      }
-    } catch (e) {
-      console.error('[IAP] checkForPendingPurchases error:', e);
-    }
-  }
+    // Cache entitlement locally
+    const planKey = (purchase.productId ?? '').toLowerCase().includes('monthly') ? 'monthly' : 'yearly';
+    await AsyncStorage.multiSet([
+      ['profile.plan', planKey],
+      ['profile.is_pro', 'true'],
+      ['profile.purchase_time', new Date().toISOString()],
+    ]);
 
-  private async processPurchase(purchase: any, source: 'listener' | 'restore' | 'orphan'): Promise<boolean> {
-    const txId = purchase.id ?? purchase.transactionId;
-
-    this.plog(`processPurchase called — source=${source} txId=${txId} productId=${purchase?.productId}`);
-    this.plog(`  purchase keys: ${Object.keys(purchase || {}).join(', ')}`);
-
-    if (!txId) {
-      this.plog('❌ txId is null/undefined — cannot process');
-      return false;
-    }
-
-    if (this.processedIds.has(txId)) {
-      this.plog(`⚠️ txId already in processedIds — skipping`);
-      return false;
-    }
-
-    try {
-      const productId = (purchase.productId ?? '').toLowerCase();
-      let planToUse: 'yearly' | 'monthly' = 'yearly';
-      if (productId.includes('monthly')) planToUse = 'monthly';
-
-      const inFlightRaw = await AsyncStorage.getItem(INFLIGHT_KEY);
-      const inFlight = inFlightRaw === 'true';
-      const shouldEntitle =
-        (source === 'listener' && inFlight) ||
-        source === 'restore' ||
-        source === 'orphan';
-
-      this.plog(`  inFlightRaw="${inFlightRaw}" inFlight=${inFlight} shouldEntitle=${shouldEntitle} plan=${planToUse}`);
-
-      if (source === 'listener' && !inFlight) {
-        this.plog('⚠️ inFlight=false — no active purchase. Finishing transaction to clear queue.');
-        try {
-          await iapModule.finishTransaction({ purchase, isConsumable: false });
-          this.plog('✅ finishTransaction (cleanup, no entitlement)');
-        } catch (cleanupErr: any) {
-          this.plog(`⚠️ finishTransaction cleanup failed: ${cleanupErr?.message}`);
-        }
-        return false;
-      }
-
-      // Mark as processed
-      this.processedIds.add(txId);
-      this.plog(`  txId added to processedIds. Set size=${this.processedIds.size}`);
-
-      if (shouldEntitle) {
-        // Store subscription locally via AsyncStorage
-        const subscriptionId = `${purchase.productId}_${Date.now()}`;
-        await AsyncStorage.multiSet([
-          ['profile.plan', planToUse],
-          ['profile.subscription_id', subscriptionId],
-          ['profile.is_pro', 'true'],
-          ['profile.purchase_time', new Date().toISOString()],
-        ]);
-        this.plog('✅ AsyncStorage local cache updated with pro entitlement');
-      }
-
-      this.plog('→ Calling finishTransaction...');
-      await iapModule.finishTransaction({ purchase, isConsumable: false });
-      this.plog('✅ finishTransaction complete');
-
-      if (shouldEntitle) {
-        await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
-        this.currentPurchaseProductId = null;
-
-        this.debugCallback?.({
-          listenerStatus: 'PURCHASE SUCCESS! ✅',
-          shouldNavigate: true,
-          purchaseComplete: true,
-          purchaseSource: source,
-        });
-        this.plog('🎉 Entitlement granted and INFLIGHT cleared');
-      }
-
-      return shouldEntitle;
-    } catch (e: any) {
-      this.plog(`❌ processPurchase threw: ${e?.message ?? String(e)}`);
-      await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
-      throw e;
+    await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
+    return purchase;
+  } finally {
+    await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
+    if (Platform.OS === 'ios') {
+      try { updateSub?.remove(); } catch (e: any) { console.warn('[IAP] updateSub.remove failed (ios):', e?.message); }
+      try { errorSub?.remove(); } catch (e: any) { console.warn('[IAP] errorSub.remove failed (ios):', e?.message); }
+      try { await iap.endConnection(); } catch (e: any) { console.warn('[IAP] endConnection failed (ios):', e?.message); }
+    } else {
+      try { updateSub?.remove(); } catch (e: any) { console.warn('[IAP] updateSub.remove failed (android):', e?.message); }
+      try { errorSub?.remove(); } catch (e: any) { console.warn('[IAP] errorSub.remove failed (android):', e?.message); }
+      try { await iap.endConnection(); } catch (e: any) { console.warn('[IAP] endConnection failed (android):', e?.message); }
     }
   }
 }
 
-export default IAPService.getInstance();
+// ── restorePurchases ──────────────────────────────────────────────────────────
+
+export async function restorePurchases(): Promise<any[]> {
+  const iap = await loadIAP();
+  if (!iap) throw new Error('IAP not available on this platform');
+
+  if (Platform.OS === 'ios') {
+    try {
+      await iap.initConnection();
+    } catch (e: any) {
+      throw new Error('Could not connect to App Store: ' + (e?.message ?? e));
+    }
+  } else {
+    try {
+      await iap.initConnection();
+    } catch (e: any) {
+      throw new Error('Could not connect to Play Store: ' + (e?.message ?? e));
+    }
+  }
+
+  try {
+    const purchases = await iap.getAvailablePurchases();
+    if (!purchases?.length) throw new Error('No previous purchases found');
+
+    for (const p of purchases) {
+      if (Platform.OS === 'ios') {
+        try {
+          await iap.finishTransaction({ purchase: p, isConsumable: false });
+        } catch (e: any) {
+          console.warn('[IAP] finishTransaction (restore/ios) failed:', e?.message);
+        }
+      } else {
+        try {
+          await iap.finishTransaction({ purchase: p, isConsumable: false });
+        } catch (e: any) {
+          console.warn('[IAP] finishTransaction (restore/android) failed:', e?.message);
+        }
+      }
+    }
+
+    return purchases;
+  } finally {
+    if (Platform.OS === 'ios') {
+      try { await iap.endConnection(); } catch (e: any) { console.warn('[IAP] endConnection (restore/ios) failed:', e?.message); }
+    } else {
+      try { await iap.endConnection(); } catch (e: any) { console.warn('[IAP] endConnection (restore/android) failed:', e?.message); }
+    }
+  }
+}
