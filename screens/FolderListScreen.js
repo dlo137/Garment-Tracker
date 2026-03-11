@@ -284,7 +284,7 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
           <Text style={[styles.title, theme === 'dark' && { color: '#e0e0e0' }]}>Inventory</Text>
           <TouchableOpacity
             style={styles.accountButton}
-            onPress={() => setAccountMenuVisible(true)}
+            onPress={async () => { await refreshProfile(); setAccountMenuVisible(true); }}
             activeOpacity={0.7}
           >
             <Image source={theme === 'dark' ? profileIcon : profileIconDark} style={styles.accountIconImage} resizeMode="contain" />
@@ -339,9 +339,13 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
           onPress={() => setAccountMenuVisible(false)}
         >
           <View style={[styles.menuCard, theme === 'dark' && { backgroundColor: '#23272F', borderColor: '#333' }]}>
-            {(isAnonymous ? [
+            {(isAnonymous && !isPro ? [
               { label: 'Guest Profile', onPress: () => { setAccountMenuVisible(false); onNavigateToProfile && onNavigateToProfile(); } },
               { label: 'Upgrade', onPress: () => { setAccountMenuVisible(false); onNavigateToSubscription && onNavigateToSubscription(); } },
+              { label: 'Create Account', onPress: () => { setAccountMenuVisible(false); onNavigateToSignUp && onNavigateToSignUp(); } },
+              { label: 'Sign In', onPress: () => { setAccountMenuVisible(false); onNavigateToSignIn && onNavigateToSignIn(); } },
+            ] : isAnonymous && isPro ? [
+              { label: `Pro Plan (${profile?.plan === 'yearly' ? 'Yearly' : 'Monthly'})`, isHighlight: true, onPress: () => { setAccountMenuVisible(false); onNavigateToSubscription && onNavigateToSubscription(); } },
               { label: 'Create Account', onPress: () => { setAccountMenuVisible(false); onNavigateToSignUp && onNavigateToSignUp(); } },
               { label: 'Sign In', onPress: () => { setAccountMenuVisible(false); onNavigateToSignIn && onNavigateToSignIn(); } },
             ] : [
@@ -362,6 +366,7 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
                   styles.menuItemLabel,
                   theme === 'dark' && { color: '#e0e0e0' },
                   item.isEmail && { fontSize: 14, color: theme === 'dark' ? '#aaa' : '#666' },
+                  item.isHighlight && { color: '#22c55e', fontWeight: '700' },
                   item.isDestructive && { color: '#ff3b30' },
                 ]} numberOfLines={1}>
                   {item.label}

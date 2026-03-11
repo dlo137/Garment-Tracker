@@ -11,8 +11,9 @@ export default function Subscription() {
       theme={theme}
       navigation={{
         goBack: () => router.back(),
-        navigate: (screen) => {
+        navigate: (screen, params) => {
           if (screen === 'folders') router.replace('/');
+          else if (params) router.push({ pathname: `/${screen}`, params });
           else router.push(`/${screen}`);
         },
       }}

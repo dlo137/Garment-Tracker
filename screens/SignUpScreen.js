@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { updateProfile } from '../lib/profileService';
 
-export default function SignUpScreen({ navigation, theme }) {
+export default function SignUpScreen({ navigation, theme, fromPurchase }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,6 +12,15 @@ export default function SignUpScreen({ navigation, theme }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const isDark = theme === 'dark';
+
+  useEffect(() => {
+    if (fromPurchase) {
+      Alert.alert(
+        'Protect your purchase — create an account.',
+        'This ensures you can restore your Pro access if you change devices.',
+      );
+    }
+  }, [fromPurchase]);
 
   const handleSignUp = async () => {
     if (!name || !email || !password) {

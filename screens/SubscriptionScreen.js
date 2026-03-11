@@ -211,7 +211,9 @@ export default function SubscriptionScreen({ navigation, theme }) {
 
       console.log(`[SUBSCRIPTION] ✅ Simulated ${plan} purchase complete`);
       setCurrentPurchaseAttempt(null);
-      navigation.goBack();
+      Alert.alert('Purchase Successful!', 'Welcome to Pro! You now have full access.', [
+        { text: 'Continue', onPress: () => navigation.navigate('signup', { fromPurchase: 'true' }) },
+      ]);
     } catch (error) {
       console.error('[SUBSCRIPTION] Simulation error:', error);
       setCurrentPurchaseAttempt(null);
@@ -283,7 +285,9 @@ export default function SubscriptionScreen({ navigation, theme }) {
       }
 
       setCurrentPurchaseAttempt(null);
-      navigation.goBack();
+      Alert.alert('Purchase Successful!', 'Welcome to Pro! You now have full access.', [
+        { text: 'Continue', onPress: () => navigation.navigate('signup', { fromPurchase: 'true' }) },
+      ]);
     } catch (error) {
       setCurrentPurchaseAttempt(null);
       const msg = String(error?.message || error);
@@ -342,7 +346,7 @@ export default function SubscriptionScreen({ navigation, theme }) {
         Alert.alert('Success', 'Your purchases have been restored!', [
           { text: 'Continue', onPress: () => {
               isRestoringRef.current = false;
-              navigation.goBack();
+              navigation.navigate('signup', { fromPurchase: 'true' });
             } }
         ]);
       } else {

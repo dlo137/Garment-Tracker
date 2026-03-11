@@ -1,10 +1,11 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import SignUpScreen from '../screens/SignUpScreen';
 import { useTheme } from '../hooks/useTheme';
 
 export default function SignUpRoute() {
   const router = useRouter();
   const { theme } = useTheme();
+  const { fromPurchase } = useLocalSearchParams();
 
   const navigation = {
     goBack: () => router.back(),
@@ -17,5 +18,5 @@ export default function SignUpRoute() {
     },
   };
 
-  return <SignUpScreen navigation={navigation} theme={theme} />;
+  return <SignUpScreen navigation={navigation} theme={theme} fromPurchase={fromPurchase === 'true'} />;
 }
