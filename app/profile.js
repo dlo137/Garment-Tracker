@@ -1,10 +1,11 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import ProfileScreen from '../screens/ProfileScreen';
 import { useTheme } from '../hooks/useTheme';
 
 export default function ProfileRoute() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { openBilling } = useLocalSearchParams();
 
   const navigation = {
     goBack: () => router.back(),
@@ -15,5 +16,5 @@ export default function ProfileRoute() {
     },
   };
 
-  return <ProfileScreen navigation={navigation} theme={theme} toggleTheme={toggleTheme} />;
+  return <ProfileScreen navigation={navigation} theme={theme} toggleTheme={toggleTheme} initialOpenBilling={openBilling === 'true'} />;
 }

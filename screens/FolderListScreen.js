@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabaseClient';
 import { restorePurchases as iapRestorePurchases } from '../lib/IApservice';
 import { updateProfile } from '../lib/profileService';
 
-export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription, onNavigateToProfile, onNavigateToSignUp, onNavigateToSignIn }) => {
+export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription, onNavigateToManageSubscription, onNavigateToProfile, onNavigateToSignUp, onNavigateToSignIn }) => {
   const { folders, items, isLoading, addFolder, renameFolder, deleteFolder, importFromExcel, profile, refreshAll, refreshProfile } = useInventoryStorage();
   const isPro = profile?.is_pro_version === true;
   const atFolderLimit = !isPro && folders.length >= 1;
@@ -341,7 +341,8 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
               { label: 'Create Account', onPress: () => { setAccountMenuVisible(false); onNavigateToSignUp && onNavigateToSignUp(); } },
               { label: 'Sign In', onPress: () => { setAccountMenuVisible(false); onNavigateToSignIn && onNavigateToSignIn(); } },
             ] : isAnonymous && isPro ? [
-              { label: `Pro Plan (${profile?.plan === 'yearly' ? 'Yearly' : 'Monthly'})`, isHighlight: true, onPress: () => { setAccountMenuVisible(false); onNavigateToSubscription && onNavigateToSubscription(); } },
+              { label: 'Profile', onPress: () => { setAccountMenuVisible(false); onNavigateToProfile && onNavigateToProfile(); } },
+              { label: `Pro Plan (${profile?.plan === 'yearly' ? 'Yearly' : 'Monthly'})`, isHighlight: true, onPress: () => { setAccountMenuVisible(false); (onNavigateToManageSubscription ?? onNavigateToSubscription)?.(); } },
               { label: 'Create Account', onPress: () => { setAccountMenuVisible(false); onNavigateToSignUp && onNavigateToSignUp(); } },
               { label: 'Sign In', onPress: () => { setAccountMenuVisible(false); onNavigateToSignIn && onNavigateToSignIn(); } },
             ] : [

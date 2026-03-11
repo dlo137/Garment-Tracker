@@ -28,7 +28,7 @@ const PLAN_PRODUCT_IDS = {
   monthly: PRODUCT_IDS.MONTHLY,
 };
 
-export default function ProfileScreen({ navigation, theme, toggleTheme }) {
+export default function ProfileScreen({ navigation, theme, toggleTheme, initialOpenBilling }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,6 +97,12 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
     loadUserData();
     setIapReady(true);
   }, []);
+
+  useEffect(() => {
+    if (initialOpenBilling && !isLoading) {
+      setIsBillingManagementModalVisible(true);
+    }
+  }, [initialOpenBilling, isLoading]);
 
   const fetchProducts = async () => {
     try {
@@ -226,9 +232,8 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
     if (!plan) return;
 
     try {
-      if (!IAPService.isAvailable()) {
-        if (__DEV__) {
-          Alert.alert('Development Mode', 'IAP is not available. Simulate a purchase for testing?', [
+      if (__DEV__ && products.length === 0) {
+        Alert.alert('Development Mode', 'IAP is not available. Simulate a purchase for testing?', [
             { text: 'Cancel', style: 'cancel' },
             {
               text: 'Simulate Purchase',
@@ -286,9 +291,6 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
               },
             },
           ]);
-        } else {
-          Alert.alert('Purchases Unavailable', 'In-app purchases are not available on this device.');
-        }
         return;
       }
 

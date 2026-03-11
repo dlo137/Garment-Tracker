@@ -12,6 +12,7 @@ export default function Index() {
       toggleTheme={toggleTheme}
       onFolderPress={(folderId) => router.push(`/folder/${folderId}`)}
       onNavigateToSubscription={() => router.push('/subscription')}
+      onNavigateToManageSubscription={() => router.push('/profile?openBilling=true')}
       onNavigateToProfile={() => router.push('/profile')}
       onNavigateToSignUp={() => router.push('/signup')}
       onNavigateToSignIn={() => router.push('/login')}
