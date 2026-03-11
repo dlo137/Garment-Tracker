@@ -14,7 +14,8 @@
       "Bash(npm ls:*)",
       "Bash(npm show:*)",
       "Bash(rm:*)",
-      "Bash(\"C:/Users/aidaw/Desktop/Code/Inventory_Tracker/.npmrc\":*)"
+      "Bash(\"C:/Users/aidaw/Desktop/Code/Inventory_Tracker/.npmrc\":*)",
+      "Bash(cd \"C:\\\\Users\\\\aidaw\\\\Desktop\\\\Code\\\\Inventory_Tracker\" && npx expo install react-dom react-native-worklets 2>&1)"
     ]
   }
 }
