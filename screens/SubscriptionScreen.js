@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Alert, 
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import IAPService, { PRODUCT_IDS } from '../lib/IApservice';
+import { PRODUCT_IDS, fetchProducts as iapFetchProducts, purchaseSubscription, restorePurchases as iapRestorePurchases } from '../lib/IApservice';
 import { supabase } from '../lib/supabaseClient';
 
 // Platform-specific product IDs for plan selection
@@ -56,50 +56,10 @@ export default function SubscriptionScreen({ navigation, theme }) {
     }).start();
   }, []);
 
-  // Fetch products on mount
+  // Products are fetched lazily inside handleContinue — never at mount time.
+  // This prevents any IAP native code from running before the user taps a button.
   useEffect(() => {
-    const fetchProducts = async () => {
-      // In Expo Go, IAP native module is unavailable. Enable the buttons in DEV
-      // so the simulated purchase flow can be tested without a real build.
-      if (!IAPService.isAvailable()) {
-        if (__DEV__) {
-          setIapReady(true);
-          setIsIAPAvailable(false);
-        }
-        return;
-      }
-
-      setLoadingProducts(true);
-      try {
-        const results = await IAPService.getProducts();
-        setProducts(results);
-        setIapReady(true);
-        setIsIAPAvailable(true);
-
-        // Android: extract per-plan offer tokens from subscriptionOfferDetails
-        if (Platform.OS === 'android' && results.length > 0) {
-          const tokens = {};
-          for (const product of results) {
-            const offers = product.subscriptionOfferDetails ?? [];
-            for (const offer of offers) {
-              if (offer.basePlanId && offer.offerToken) {
-                tokens[offer.basePlanId] = offer.offerToken;
-              }
-            }
-          }
-          console.log('[SUB] Android offer tokens found:', Object.keys(tokens));
-          setAndroidOfferTokens(tokens);
-        }
-      } catch (err) {
-        console.error('[SUB] Product fetch error:', err);
-        setProducts([]);
-        setIapReady(false);
-        setIsIAPAvailable(false);
-      } finally {
-        setLoadingProducts(false);
-      }
-    };
-    fetchProducts();
+    setIapReady(true);
   }, []);
 
   // ── Expo Go simulation ──────────────────────────────────────────────────────
@@ -228,39 +188,50 @@ export default function SubscriptionScreen({ navigation, theme }) {
       return;
     }
 
-    if (!IAPService.isAvailable()) {
-      Alert.alert('Purchases Unavailable', 'In-app purchases are not supported on this device.');
-      return;
+    // Fetch products lazily — only now that the user has tapped the button.
+    setLoadingProducts(true);
+    let productList = products;
+    if (!productList.length) {
+      try {
+        productList = await iapFetchProducts();
+        setProducts(productList);
+
+        // Android: extract offer tokens
+        if (Platform.OS === 'android' && productList.length > 0) {
+          const tokens = {};
+          for (const p of productList) {
+            for (const offer of (p.subscriptionOfferDetails ?? [])) {
+              if (offer.basePlanId && offer.offerToken) tokens[offer.basePlanId] = offer.offerToken;
+            }
+          }
+          setAndroidOfferTokens(tokens);
+        }
+      } catch (err) {
+        setLoadingProducts(false);
+        Alert.alert('Store Unavailable', 'Could not connect to the store. Please try again.');
+        return;
+      }
     }
+    setLoadingProducts(false);
 
     const planId = PLAN_PRODUCT_IDS[selectedPlan];
-    const product = products.find((p) => (p.id ?? p.productId) === planId);
+    const product = productList.find((p) => (p.id ?? p.productId) === planId);
     if (!product) {
       Alert.alert('Plan not available', 'We couldn\'t find that plan. Please check your internet connection and try again.');
       return;
     }
 
-    // Android: pass the offer token for the selected base plan
     const offerToken = Platform.OS === 'android' ? androidOfferTokens[selectedPlan] : undefined;
-    if (Platform.OS === 'android' && !offerToken) {
-      console.warn('[SUB] No offer token for plan:', selectedPlan, 'available tokens:', androidOfferTokens);
-    }
 
     setCurrentPurchaseAttempt(selectedPlan);
     try {
-      await IAPService.purchaseProduct(product.id ?? product.productId, offerToken);
+      const purchase = await purchaseSubscription(product.id ?? product.productId, offerToken);
 
-      // Get the actual transaction details from the completed purchase
-      const lastPurchase = IAPService.getLastPurchaseResult();
-      const transactionId = lastPurchase?.id ?? lastPurchase?.transactionId ?? '';
-
-      // Update Supabase profile with pro plan + subscription details
+      const transactionId = purchase?.id ?? purchase?.transactionId ?? '';
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const now = new Date().toISOString();
-        const purchasedProductId = product.id ?? product.productId;
         const purchasePrice = product.localizedPrice ?? product.price ?? '';
-
         const periodEnd = new Date();
         periodEnd.setDate(periodEnd.getDate() + (selectedPlan === 'yearly' ? 365 : 30));
 
@@ -272,7 +243,7 @@ export default function SubscriptionScreen({ navigation, theme }) {
             purchase_time: now,
             price: String(purchasePrice),
             subscription_id: transactionId,
-            product_id: purchasedProductId,
+            product_id: product.id ?? product.productId,
             updated_at: now,
             status: 'active',
             current_period_start: now,
@@ -301,15 +272,9 @@ export default function SubscriptionScreen({ navigation, theme }) {
     if (isRestoringRef.current) return;
     isRestoringRef.current = true;
 
-    if (!IAPService.isAvailable()) {
-      Alert.alert('Restore Failed', 'In-app purchases are not available on this device.');
-      isRestoringRef.current = false;
-      return;
-    }
-
     try {
       console.log('[SUBSCRIPTION] Attempting to restore purchases...');
-      const results = await IAPService.restorePurchases();
+      const results = await iapRestorePurchases();
       if (results.length > 0) {
         // Determine the plan from the restored purchase
         const restoredProduct = results[0];

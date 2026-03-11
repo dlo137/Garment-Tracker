@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, Modal, TextInput, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { useInventoryStorage } from '../hooks/useInventoryStorage';
@@ -12,7 +12,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as XLSX from 'xlsx';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../lib/supabaseClient';
-import IAPService from '../lib/IApservice';
+import { restorePurchases as iapRestorePurchases } from '../lib/IApservice';
 import { updateProfile } from '../lib/profileService';
 
 export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigateToSubscription, onNavigateToProfile, onNavigateToSignUp, onNavigateToSignIn }) => {
@@ -78,12 +78,8 @@ export const FolderListScreen = ({ onFolderPress, theme, toggleTheme, onNavigate
 
   const handleRestorePurchases = async () => {
     setAccountMenuVisible(false);
-    if (!IAPService.isAvailable()) {
-      Alert.alert('Restore Failed', 'In-app purchases are not available on this device.');
-      return;
-    }
     try {
-      const results = await IAPService.restorePurchases();
+      const results = await iapRestorePurchases();
       if (results.length > 0) {
         const restoredProduct = results[0];
         const restoredProductId = (restoredProduct?.productId ?? '').toLowerCase();

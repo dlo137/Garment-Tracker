@@ -21,7 +21,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../lib/supabaseClient';
 import { getProfile, updateProfile } from '../lib/profileService';
-import IAPService, { PRODUCT_IDS } from '../lib/IApservice';
+import { PRODUCT_IDS, fetchProducts as iapFetchProducts, purchaseSubscription, restorePurchases as iapRestorePurchases } from '../lib/IApservice';
 
 const PLAN_PRODUCT_IDS = {
   yearly: PRODUCT_IDS.YEARLY,
@@ -95,42 +95,15 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
 
   useEffect(() => {
     loadUserData();
-    initializeIAP();
-
-    const timeout = setTimeout(() => {
-      setIapReady(true);
-    }, 5000);
-
-    return () => clearTimeout(timeout);
+    setIapReady(true);
   }, []);
 
-  const initializeIAP = async () => {
-    if (!IAPService.isAvailable()) {
-      setIapReady(true);
-      return;
-    }
-
-    try {
-      const initialized = await IAPService.initialize();
-      setIapReady(initialized || true);
-      if (initialized) await fetchProducts();
-    } catch (error) {
-      console.error('[PROFILE] Error initializing IAP:', error);
-      setIapReady(true);
-    }
-  };
-
-  const fetchProducts = async (showErrors = false) => {
-    if (!IAPService.isAvailable()) return [];
+  const fetchProducts = async () => {
     try {
       setLoadingProducts(true);
-      const results = await IAPService.getProducts();
-      if (results?.length) {
-        setProducts(results);
-        return results;
-      }
-      setProducts([]);
-      return [];
+      const results = await iapFetchProducts();
+      setProducts(results ?? []);
+      return results ?? [];
     } catch (err) {
       setProducts([]);
       return [];
@@ -319,7 +292,7 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
         return;
       }
 
-      const list = products.length ? products : await fetchProducts(true);
+      const list = products.length ? products : await fetchProducts();
       const productId = PLAN_PRODUCT_IDS[planId];
       const product = list.find((p) => (p.id ?? p.productId) === productId);
 
@@ -338,10 +311,9 @@ export default function ProfileScreen({ navigation, theme, toggleTheme }) {
 
   const handlePurchase = async (productId) => {
     try {
-      await IAPService.purchaseProduct(productId);
+      const purchase = await purchaseSubscription(productId);
 
-      const lastPurchase = IAPService.getLastPurchaseResult();
-      const txId = lastPurchase?.id ?? lastPurchase?.transactionId ?? '';
+      const txId = purchase?.id ?? purchase?.transactionId ?? '';
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
