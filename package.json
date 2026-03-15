@@ -9,10 +9,13 @@
     "web": "expo start --web"
   },
   "expo": {
-  "install": {
-    "exclude": ["react-native-worklets", "react-native-nitro-modules"]
-  }
-},
+    "install": {
+      "exclude": [
+        "react-native-worklets",
+        "react-native-nitro-modules"
+      ]
+    }
+  },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-picker/picker": "2.11.1",
@@ -42,6 +45,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.1.10",
+    "react-refresh": "^0.18.0",
     "typescript": "~5.9.2"
   },
   "private": true

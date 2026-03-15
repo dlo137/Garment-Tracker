@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Alert, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Alert, Platform, Image, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PRODUCT_IDS, fetchProducts as iapFetchProducts, purchaseSubscription, restorePurchases as iapRestorePurchases } from '../lib/IApservice';
+import { PRODUCT_IDS, fetchProducts as iapFetchProducts, purchaseSubscription, restorePurchases as iapRestorePurchases, getIapLogs, clearIapLogs } from '../lib/IApservice';
 import { supabase } from '../lib/supabaseClient';
 
 // Platform-specific product IDs for plan selection
@@ -25,6 +25,8 @@ export default function SubscriptionScreen({ navigation, theme }) {
   const [androidOfferTokens, setAndroidOfferTokens] = useState({});
   const isRestoringRef = useRef(false);
   const [currentPlan, setCurrentPlan] = useState(null);
+  const [debugVisible, setDebugVisible] = useState(false);
+  const [debugLogs, setDebugLogs] = useState([]);
 
   // Fetch the user's current plan
   useEffect(() => {
@@ -330,6 +332,11 @@ export default function SubscriptionScreen({ navigation, theme }) {
     }
   };
 
+  const openDebug = () => {
+    setDebugLogs(getIapLogs());
+    setDebugVisible(true);
+  };
+
   const formatPrice = (plan, fallbackPrice) => {
     const planId = PLAN_PRODUCT_IDS[plan];
     const product = products.find((p) => (p.id ?? p.productId) === planId);
@@ -353,6 +360,11 @@ export default function SubscriptionScreen({ navigation, theme }) {
       {/* Close Button */}
       <TouchableOpacity style={[styles.closeButton, !isDark && { backgroundColor: 'rgba(0, 0, 0, 0.06)' }]} onPress={() => navigation.goBack()}>
         <Text style={[styles.closeText, !isDark && { color: '#333' }]}>✕</Text>
+      </TouchableOpacity>
+
+      {/* Debug Panel Button */}
+      <TouchableOpacity style={styles.debugButton} onPress={openDebug}>
+        <Text style={styles.debugButtonText}>🐛</Text>
       </TouchableOpacity>
 
       {/* Restore Purchases */}
@@ -466,6 +478,42 @@ export default function SubscriptionScreen({ navigation, theme }) {
         </TouchableOpacity>
         <Text style={[styles.cancelAnytimeText, !isDark && { color: '#999' }]}>Cancel Anytime. No Commitment.</Text>
       </View>
+      {/* IAP Debug Panel */}
+      <Modal visible={debugVisible} animationType="slide" transparent onRequestClose={() => setDebugVisible(false)}>
+        <View style={styles.debugOverlay}>
+          <View style={[styles.debugPanel, !isDark && { backgroundColor: '#fff' }]}>
+            <View style={styles.debugHeader}>
+              <Text style={[styles.debugTitle, !isDark && { color: '#111' }]}>IAP Debug Logs</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity onPress={() => { clearIapLogs(); setDebugLogs([]); }} style={styles.debugClearBtn}>
+                  <Text style={styles.debugClearText}>Clear</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setDebugVisible(false)} style={styles.debugCloseBtn}>
+                  <Text style={styles.debugClearText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.debugInfo}>
+              <Text style={styles.debugInfoText}>Platform: {Platform.OS} | Products loaded: {products.length}</Text>
+              <Text style={styles.debugInfoText}>IAP ready: {String(iapReady)} | In-flight: {String(!!currentPurchaseAttempt)}</Text>
+            </View>
+            <ScrollView style={styles.debugLogScroll}>
+              {debugLogs.length === 0
+                ? <Text style={styles.debugEmpty}>No logs yet. Tap "Get Started" to trigger IAP.</Text>
+                : [...debugLogs].reverse().map((line, i) => (
+                    <Text key={i} style={[styles.debugLine, !isDark && { color: '#222' }]}>{line}</Text>
+                  ))
+              }
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.debugRefreshBtn}
+              onPress={() => setDebugLogs(getIapLogs())}
+            >
+              <Text style={styles.debugClearText}>Refresh Logs</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -680,5 +728,92 @@ const styles = StyleSheet.create({
     color: MUTED,
     textAlign: 'center',
     marginTop: 12,
+  },
+  debugButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+  },
+  debugButtonText: {
+    fontSize: 18,
+  },
+  debugOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  debugPanel: {
+    backgroundColor: '#0d1120',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    maxHeight: '80%',
+  },
+  debugHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  debugTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  debugClearBtn: {
+    backgroundColor: '#374151',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  debugCloseBtn: {
+    backgroundColor: '#374151',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  debugClearText: {
+    color: '#fff',
+    fontSize: 12,
+  },
+  debugInfo: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+  },
+  debugInfoText: {
+    color: '#a0a8b8',
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  debugLogScroll: {
+    maxHeight: 380,
+  },
+  debugLine: {
+    color: '#d1fae5',
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginBottom: 3,
+  },
+  debugEmpty: {
+    color: '#6b7280',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  debugRefreshBtn: {
+    backgroundColor: '#1e40af',
+    borderRadius: 10,
+    padding: 10,
+    alignItems: 'center',
+    marginTop: 10,
   },
 });
