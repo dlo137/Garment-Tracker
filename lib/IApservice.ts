@@ -7,7 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Key v14 changes from v12/v13:
 //   • getSubscriptions/getProducts → fetchProducts({ skus, type })
 //   • requestSubscription          → requestPurchase({ type:'subs', request:{apple/google:{...}} })
-//     requestPurchase is now PROMISE-BASED — no purchaseUpdatedListener needed in the buy flow
+//     requestPurchase fires the native UI (return value is null); result still arrives via
+//     purchaseUpdatedListener — register AFTER initConnection so Nitro bridge is ready
 //   • andDangerouslyFinishTransactionAutomaticallyIOS → andDangerouslyFinishTransactionAutomatically
 //   • Product identifier field is `id` (not `productId`)
 //
@@ -100,8 +101,12 @@ export async function fetchProducts(): Promise<any[]> {
 }
 
 // ── purchaseSubscription ──────────────────────────────────────────────────────
-// v14: requestPurchase() is promise-based — resolves with Purchase directly.
-// No purchaseUpdatedListener / purchaseErrorListener needed in the buy flow.
+// v14 flow (listener-based, same pattern as v12/v13 but new requestPurchase signature):
+//   1. initConnection()  — must happen first so Nitro bridge is ready
+//   2. Register purchaseUpdatedListener + purchaseErrorListener (AFTER initConnection)
+//   3. Call requestPurchase() — fires native StoreKit/Play UI; return value is null (ignored)
+//   4. Listener resolves the promise when the purchase completes
+//   5. finishTransaction → endConnection → remove listeners
 
 export async function purchaseSubscription(
   sku: string,
@@ -122,52 +127,87 @@ export async function purchaseSubscription(
 
   await AsyncStorage.setItem(INFLIGHT_KEY, 'true');
 
+  let updateSub: any = null;
+  let errorSub: any = null;
+
   try {
-    iapLog(`purchaseSubscription: requestPurchase sku=${sku} offerToken=${offerToken}`);
+    const purchase = await new Promise<any>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Purchase timed out')), 60000);
 
-    let purchase: any;
+      // Register listeners AFTER initConnection so Nitro is ready
+      try {
+        updateSub = iap.purchaseUpdatedListener((p: any) => {
+          iapLog(`purchaseUpdatedListener fired: id=${p?.id ?? p?.productId}`);
+          clearTimeout(timer);
+          resolve(p);
+        });
+      } catch (e: any) {
+        iapLog(`purchaseUpdatedListener registration FAILED: ${e?.message}`);
+      }
 
-    if (Platform.OS === 'ios') {
-      // v14 iOS: type:'subs', request.apple.sku
-      purchase = await iap.requestPurchase({
-        type: 'subs',
-        request: {
-          apple: {
-            sku,
-            andDangerouslyFinishTransactionAutomatically: false,
-          },
-        },
-      });
-    } else {
-      // v14 Android: type:'subs', request.google.skus (array), subscriptionOffers
-      purchase = await iap.requestPurchase({
-        type: 'subs',
-        request: {
-          google: {
-            skus: [sku],
-            subscriptionOffers: offerToken ? [{ sku, offerToken }] : undefined,
-          },
-        },
-      });
-    }
+      try {
+        errorSub = iap.purchaseErrorListener((err: any) => {
+          iapLog(`purchaseErrorListener fired: code=${err?.code} msg=${err?.message}`);
+          clearTimeout(timer);
+          reject(new Error(err?.message ?? 'Purchase error'));
+        });
+      } catch (e: any) {
+        iapLog(`purchaseErrorListener registration FAILED: ${e?.message}`);
+      }
 
-    // requestPurchase may return Purchase | Purchase[] | null
-    const resolved = Array.isArray(purchase) ? purchase[0] : purchase;
-    if (!resolved) throw new Error('Purchase returned null/empty');
+      // v14 requestPurchase — new signature, replaces requestSubscription
+      // Returns null immediately; actual result arrives via listener above
+      iapLog(`requestPurchase sku=${sku} offerToken=${offerToken}`);
+      try {
+        if (Platform.OS === 'ios') {
+          iap.requestPurchase({
+            type: 'subs',
+            request: {
+              apple: {
+                sku,
+                andDangerouslyFinishTransactionAutomatically: false,
+              },
+            },
+          }).catch((e: any) => {
+            iapLog(`requestPurchase rejected: ${e?.message}`);
+            clearTimeout(timer);
+            reject(e);
+          });
+        } else {
+          iap.requestPurchase({
+            type: 'subs',
+            request: {
+              google: {
+                skus: [sku],
+                subscriptionOffers: offerToken ? [{ sku, offerToken }] : undefined,
+              },
+            },
+          }).catch((e: any) => {
+            iapLog(`requestPurchase rejected: ${e?.message}`);
+            clearTimeout(timer);
+            reject(e);
+          });
+        }
+      } catch (e: any) {
+        iapLog(`requestPurchase threw synchronously: ${e?.message}`);
+        clearTimeout(timer);
+        reject(e);
+      }
+    });
 
-    iapLog(`purchaseSubscription: purchase OK productId=${resolved.id ?? resolved.productId}`);
+    iapLog(`purchase resolved: id=${purchase?.id ?? purchase?.productId}`);
 
     // Finish the transaction
     try {
-      iapLog('purchaseSubscription: finishTransaction...');
-      await iap.finishTransaction({ purchase: resolved, isConsumable: false });
-      iapLog('purchaseSubscription: finishTransaction OK');
+      iapLog('finishTransaction...');
+      await iap.finishTransaction({ purchase, isConsumable: false });
+      iapLog('finishTransaction OK');
     } catch (e: any) {
-      iapLog(`purchaseSubscription: finishTransaction FAILED (non-fatal): ${e?.message}`);
+      iapLog(`finishTransaction FAILED (non-fatal): ${e?.message}`);
     }
 
     // Cache entitlement locally
-    const planKey = (resolved.id ?? resolved.productId ?? '').toLowerCase().includes('monthly') ? 'monthly' : 'yearly';
+    const planKey = (purchase.id ?? purchase.productId ?? '').toLowerCase().includes('monthly') ? 'monthly' : 'yearly';
     await AsyncStorage.multiSet([
       ['profile.plan', planKey],
       ['profile.is_pro', 'true'],
@@ -175,12 +215,14 @@ export async function purchaseSubscription(
     ]);
 
     await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
-    return resolved;
+    return purchase;
   } catch (e: any) {
-    iapLog(`purchaseSubscription: FAILED: ${e?.message}`);
+    iapLog(`purchaseSubscription FAILED: ${e?.message}`);
     throw e;
   } finally {
     await AsyncStorage.setItem(INFLIGHT_KEY, 'false');
+    try { updateSub?.remove(); } catch {}
+    try { errorSub?.remove(); } catch {}
     try { await iap.endConnection(); } catch (e: any) { iapLog(`endConnection FAILED (non-fatal): ${e?.message}`); }
   }
 }
