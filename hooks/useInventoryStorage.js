@@ -437,6 +437,7 @@ export const useInventoryStorage = () => {
     items,
     profile,
     isLoading,
+    loadItems,
     addFolder,
     renameFolder,
     deleteFolder,

@@ -98,7 +98,6 @@ export const ItemCard = ({ item, onUpdateQuantity, onDelete, onPress, onSave, on
             <View style={styles.nameContainer}>
               <Text style={[styles.itemLabel, theme === 'dark' && { color: '#b0b4c0' }]}>Brand: <Text style={[styles.itemValue, theme === 'dark' && { color: '#e0e0e0' }]}>{item.brand || '—'}</Text></Text>
               <Text style={[styles.itemLabel, theme === 'dark' && { color: '#b0b4c0' }]}>Color: <Text style={[styles.itemValue, theme === 'dark' && { color: '#e0e0e0' }]}>{item.color || '—'}</Text></Text>
-              <Text style={[styles.itemLabel, theme === 'dark' && { color: '#b0b4c0' }]}>Type: <Text style={[styles.itemValue, theme === 'dark' && { color: '#e0e0e0' }]}>{item.garmentType || '—'}</Text></Text>
               <Text style={[styles.itemLabel, theme === 'dark' && { color: '#b0b4c0' }]}>Size: <Text style={[styles.itemValue, theme === 'dark' && { color: '#e0e0e0' }]}>{item.size || '—'}</Text></Text>
             </View>
           </View>
